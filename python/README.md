@@ -6,6 +6,8 @@
 
 先安装与你的系统和 CPU 架构匹配的 Axon wheel：
 
+推荐使用 `uv` 管理 Python 环境。
+
 ```shell
 cd axon-examples\python
 uv venv
