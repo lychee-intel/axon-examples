@@ -9,7 +9,7 @@ WPF desktop application that displays real-time EEG waveforms from a Lychee devi
 - **Device discovery** — auto-detects Lychee EEG hardware on the LAN
 - **Simulator mode** — `--sim` creates a virtual 3-channel, 250 Hz device
 - **Real-time waveforms** — scrolling multi-channel EEG display with auto-scaling
-- **0.4–70 Hz bandpass filter** — IIR 2nd-order filter applied by default (`--no-filter` to disable)
+- **0.4–70 Hz bandpass filter** — single-section IIR filter applied by default, matching the native debugger (`--no-filter` to disable, `--notch` to add a 50 Hz notch)
 - **Dark theme** — matches the Python example's visual style
 
 ## Prerequisites
@@ -41,8 +41,9 @@ dotnet run --project src -- --help
 | ------------------- | ---------------------------------------------------- |
 | `--sim`             | Use the built-in simulator (no hardware)             |
 | `--serial HEX`      | Add a device by its 6-char hex serial                |
-| `--window SECONDS`  | Waveform display window (default 5.0)                |
+| `--window SECONDS`  | Waveform display window (default 10.0)               |
 | `--no-filter`       | Disable the 0.4–70 Hz bandpass filter                |
+| `--notch`           | Add a 50 Hz notch (Q=30), useful with real hardware  |
 | `--log-level LEVEL` | Rust log level: off, error, warn, info, debug, trace |
 
 ## Building

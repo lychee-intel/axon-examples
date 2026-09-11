@@ -7,7 +7,7 @@
 - **设备发现** — 自动检测局域网上的 Lychee EEG 硬件
 - **模拟器模式** — `--sim` 创建虚拟3通道、250 Hz 设备
 - **实时波形** — 滚动多通道 EEG 显示，自动量程
-- **0.4–70 Hz 带通滤波** — 默认启用 IIR 2 阶滤波器（`--no-filter` 可禁用）
+- **0.4–70 Hz 带通滤波** — 默认启用 IIR 单节滤波器，与原生调试器一致（`--no-filter` 可禁用，`--notch` 叠加 50 Hz 陷波）
 - **暗色主题** — 与 Python 示例一致的视觉风格
 
 ## 环境要求
@@ -46,8 +46,9 @@ dotnet run --project src -- --help
 |---|---|
 | `--sim` | 使用内置模拟器（无需硬件） |
 | `--serial HEX` | 按 6 位十六进制 serial 添加设备 |
-| `--window SECONDS` | 波形显示时窗（默认 5.0 秒） |
+| `--window SECONDS` | 波形显示时窗（默认 10.0 秒） |
 | `--no-filter` | 禁用 0.4–70 Hz 带通滤波器 |
+| `--notch` | 叠加 50 Hz 陷波（Q=30），接硬件时使用 |
 | `--log-level LEVEL` | Rust 日志级别：off, error, warn, info, debug, trace |
 
 ## 构建
