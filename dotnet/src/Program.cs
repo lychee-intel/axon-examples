@@ -8,6 +8,7 @@ public sealed record CommandLineArgs(
     string? Serial,
     double WindowSeconds,
     bool NoFilter,
+    bool Notch,
     uint LogLevel);
 
 internal static class Program
@@ -28,8 +29,9 @@ internal static class Program
     {
         var sim = false;
         string? serial = null;
-        var window = 5.0;
+        var window = 10.0;
         var noFilter = false;
+        var notch = false;
         var logLevel = "off";
 
         for (var i = 0; i < args.Length; i++)
@@ -50,6 +52,9 @@ internal static class Program
                     break;
                 case "--no-filter":
                     noFilter = true;
+                    break;
+                case "--notch":
+                    notch = true;
                     break;
                 case "--log-level":
                     if (i + 1 >= args.Length) return Error("--log-level requires a level argument");
@@ -80,7 +85,7 @@ internal static class Program
         if (level is null)
             return Error($"Invalid log level: {logLevel} (valid: off, error, warn, info, debug, trace)");
 
-        return new CommandLineArgs(sim, serial, window, noFilter, level.Value);
+        return new CommandLineArgs(sim, serial, window, noFilter, notch, level.Value);
     }
 
     private static CommandLineArgs? Error(string message)
@@ -101,8 +106,9 @@ internal static class Program
             Options:
               --sim                 Use built-in simulator (no hardware needed)
               --serial HEX          Connect to a device by its hex serial
-              --window SECONDS      Waveform display window (default 5.0)
-              --no-filter           Disable 50 Hz notch filter
+              --window SECONDS      Waveform display window (default 10.0)
+              --no-filter           Disable the 0.4–70 Hz bandpass filter
+              --notch               Add a 50 Hz notch (Q=30) for real hardware
               --log-level LEVEL     Rust log level (off|error|warn|info|debug|trace)
               -h, --help            Show this help message
             """);

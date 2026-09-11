@@ -1,0 +1,34 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Lychee Monitor (模拟器)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/lychee_monitor.py",
+      "args": ["--sim"],
+      "cwd": "${workspaceFolder}/python",
+      "python": "${workspaceFolder}/python/.venv/Scripts/python.exe",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: Lychee Monitor (硬件)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/python/lychee_monitor.py",
+      "cwd": "${workspaceFolder}/python",
+      "python": "${workspaceFolder}/python/.venv/Scripts/python.exe",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: Tests (test_monitor.py)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "unittest",
+      "args": ["discover", "-s", "tests", "-p", "test_*.py", "-v"],
+      "cwd": "${workspaceFolder}/python",
+      "python": "${workspaceFolder}/python/.venv/Scripts/python.exe",
+      "console": "integratedTerminal"
+    }
+  ]
+}

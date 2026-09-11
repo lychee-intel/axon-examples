@@ -201,8 +201,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
             if (!_args.NoFilter)
             {
-                // The FFI requires an explicit Q (0 is rejected), so compute the
-                // same value the native side would auto-derive: q = f0 / bandwidth.
+                // Same default as the native debugger: a single IIR band-pass
+                // section at 0.4–70 Hz. The FFI requires an explicit Q (0 is
+                // rejected), so pass the value the native side auto-derives:
+                // q = f0 / bandwidth.
                 const double bpLow = 0.4, bpHigh = 70.0;
                 var bpQ = Math.Sqrt(bpLow * bpHigh) / (bpHigh - bpLow);
                 session.AddFilter(new FilterStageConfig(
@@ -210,9 +212,19 @@ public partial class MainViewModel : ObservableObject, IDisposable
                     Kind: AxonFilterKind.BandPass,
                     CutoffHz: bpLow,
                     Cutoff2Hz: bpHigh,
-                    Order: 2,
+                    Order: 1,
                     Q: bpQ,
                     SampleRateHz: info.SampleRateHz));
+
+                if (_args.Notch)
+                    session.AddFilter(new FilterStageConfig(
+                        FilterType: AxonFilterType.Iir,
+                        Kind: AxonFilterKind.Notch,
+                        CutoffHz: 50.0,
+                        Cutoff2Hz: 0.0,
+                        Order: 4,
+                        Q: 30.0,
+                        SampleRateHz: info.SampleRateHz));
             }
 
             _session = session;
@@ -220,7 +232,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
             IsCollecting = true;
             StatusText = _args.NoFilter
                 ? $"Collecting {serial} · {info.NumChannels} ch · {info.SampleRateHz:F0} Hz · unfiltered"
-                : $"Collecting {serial} · {info.NumChannels} ch · {info.SampleRateHz:F0} Hz · BP 0.4–70 Hz";
+                : $"Collecting {serial} · {info.NumChannels} ch · {info.SampleRateHz:F0} Hz · BP 0.4–70 Hz"
+                  + (_args.Notch ? " + notch 50 Hz" : "");
         }
         catch (AxonException ex)
         {

@@ -196,9 +196,19 @@ class LycheeMonitor:
             info = self.axon.device_info(serial)
             session = self.axon.new_session(serial)
             if not self.args.no_filter:
+                # Same default as the native debugger: one IIR band-pass section
+                # at 0.4–70 Hz. Q must be passed explicitly (the FFI rejects 0)
+                # and is derived exactly like the native side: q = f0 / bandwidth.
+                bp_low, bp_high = 0.4, 70.0
+                bp_q = math.sqrt(bp_low * bp_high) / (bp_high - bp_low)
+                session.add_filter(AxonFilterStageConfig(
+                    filter_type=1, kind=2, cutoff_hz=bp_low, cutoff2_hz=bp_high,
+                    sample_rate_hz=info.sample_rate_hz, order=1, q=bp_q,
+                ))
+            if self.args.notch:
                 session.add_filter(AxonFilterStageConfig(
                     filter_type=1, kind=4, cutoff_hz=50.0,
-                    sample_rate_hz=info.sample_rate_hz, order=4, q=0.707,
+                    sample_rate_hz=info.sample_rate_hz, order=4, q=30.0,
                 ))
         except AxonError as error:
             messagebox.showerror("无法开始采集", str(error), parent=self.root)
@@ -241,7 +251,7 @@ class LycheeMonitor:
                 for index, value in enumerate(samples):
                     x = start_x + index * width / max(1, self.args.window * self.buffer.sample_rate_hz)
                     points.extend((x, center - value * scale))
-                canvas.create_line(*points, fill="#42ef9c", width=1.4, smooth=True)
+                canvas.create_line(*points, fill="#42ef9c", width=1.4)
                 canvas.create_text(
                     width - 8, top + 12, text=f"±{amplitude:.0f} µV",
                     anchor=tk.E, fill="#6da886",
@@ -261,8 +271,9 @@ def main():
     parser = argparse.ArgumentParser(description="Lychee EEG 实时波形监测器")
     parser.add_argument("--sim", action="store_true", help="使用内置模拟器")
     parser.add_argument("--serial", metavar="HEX", help="直接添加已知设备 serial")
-    parser.add_argument("--window", type=float, default=5.0, help="波形显示时窗（秒）")
-    parser.add_argument("--no-filter", action="store_true", help="不添加 50 Hz 陷波")
+    parser.add_argument("--window", type=float, default=10.0, help="波形显示时窗（秒）")
+    parser.add_argument("--no-filter", action="store_true", help="禁用 0.4–70 Hz 带通滤波")
+    parser.add_argument("--notch", action="store_true", help="叠加 50 Hz 陷波（Q=30，接硬件时使用）")
     parser.add_argument("--log-level", choices=LOG_LEVELS, default="off", help="Rust 日志级别")
     args = parser.parse_args()
     if args.sim and args.serial:
