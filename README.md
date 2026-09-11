@@ -6,3 +6,4 @@ Axon 是力之的生理信号采集SDK，用于采集、分析、存储脑电、
 目前支持以下语言：
 
 - [Python](python/README.md)
+- [.NET (C#)](dotnet/README.md)
