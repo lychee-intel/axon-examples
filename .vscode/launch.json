@@ -29,6 +29,28 @@
       "cwd": "${workspaceFolder}/python",
       "python": "${workspaceFolder}/python/.venv/Scripts/python.exe",
       "console": "integratedTerminal"
+    },
+    {
+      "name": "Flutter Demo (Windows)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/flutter",
+      "toolArgs": [
+        "-d", "windows",
+        "--dart-define=AXON_LIB_PATH=D:/code/Rust/axon/target/debug/axon.dll"
+      ]
+    },
+    {
+      "name": "Flutter Demo (macOS)",
+      "type": "dart",
+      "request": "launch",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/flutter",
+      "toolArgs": [
+        "-d", "macos",
+        "--dart-define=AXON_LIB_PATH=D:/code/Rust/axon/target/debug/libaxon.dylib"
+      ]
     }
   ]
 }

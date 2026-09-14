@@ -61,6 +61,7 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
       final session = switch (_dataSource) {
         _DataSource.simulator => () {
             const serial = 'simulator';
+            _axon.start();
             _axon.addSimulator(serial,
                 channels: _numChannels, sampleRateHz: _sampleRateHz);
             return _axon.newSession(serial);
