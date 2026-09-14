@@ -1,0 +1,18 @@
+# Dart/Flutter
+.dart_tool/
+**/build/
+*.iml
+.flutter-plugins*
+.packages
+
+# Python
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# .NET
+bin/
+obj/
+
+# Misc
+.DS_Store
