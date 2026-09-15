@@ -21,7 +21,7 @@
 # 在 axon 仓库根目录
 .\scripts\build-dotnet-nuget.ps1
 # 然后将 .nupkg 复制到此处
-cp bindings/dotnet/Axon/bin/Release/Axon.*.nupkg ../axon-examples/dotnet/packages/
+cp outputs/Axon.*.nupkg ../axon-examples/dotnet/packages/
 ```
 
 ## 运行

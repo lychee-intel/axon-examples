@@ -1,9 +1,7 @@
 import 'package:axon_dart/axon.dart';
 import 'package:flutter/material.dart';
 
-/// 滤波器类型。
-enum FilterKind { lowPass, highPass, bandPass, bandStop, notch }
-
+/// 显示 binding 滤波器 enum 的本地化文案。
 extension FilterKindX on FilterKind {
   String get label => switch (this) {
         FilterKind.lowPass => 'Low-Pass',
@@ -49,8 +47,8 @@ class FilterEntry {
 
   /// 转为 FFI 结构。
   AxonFilterStage toStage(double sampleRateHz) => AxonFilterStage(
-        filterType: 1, // IIR
-        kind: kind.index,
+        filterType: FilterType.iir,
+        kind: kind,
         cutoffHz: cutoffHz,
         cutoff2Hz: cutoff2Hz,
         order: order,

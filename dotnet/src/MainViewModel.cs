@@ -3,7 +3,6 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Threading;
 using Axon;
-using Axon.Native;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ScottPlot;
@@ -208,8 +207,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 const double bpLow = 0.4, bpHigh = 70.0;
                 var bpQ = Math.Sqrt(bpLow * bpHigh) / (bpHigh - bpLow);
                 session.AddFilter(new FilterStageConfig(
-                    FilterType: AxonFilterType.Iir,
-                    Kind: AxonFilterKind.BandPass,
+                    FilterType: FilterType.Iir,
+                    Kind: FilterKind.BandPass,
                     CutoffHz: bpLow,
                     Cutoff2Hz: bpHigh,
                     Order: 1,
@@ -218,8 +217,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
                 if (_args.Notch)
                     session.AddFilter(new FilterStageConfig(
-                        FilterType: AxonFilterType.Iir,
-                        Kind: AxonFilterKind.Notch,
+                        FilterType: FilterType.Iir,
+                        Kind: FilterKind.Notch,
                         CutoffHz: 50.0,
                         Cutoff2Hz: 0.0,
                         Order: 4,

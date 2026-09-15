@@ -2,7 +2,6 @@
 """Lychee EEG desktop monitor with device selection and scrolling waveforms."""
 
 import argparse
-import ctypes
 import math
 import sys
 import tkinter as tk
@@ -10,36 +9,30 @@ from collections import deque
 from queue import Empty, Queue
 from tkinter import messagebox, ttk
 
-from axon import Axon, AxonError, AxonFilterStageConfig, SampleBlock
-from axon._types import (
-    AXON_LOG_DEBUG,
-    AXON_LOG_ERROR,
-    AXON_LOG_INFO,
-    AXON_LOG_OFF,
-    AXON_LOG_TRACE,
-    AXON_LOG_WARN,
-    AxonLogConfig,
+from axon import (
+    Axon,
+    AxonError,
+    AxonFilterStageConfig,
+    FilterKind,
+    FilterType,
+    LogLevel,
+    SensorType,
+    SampleBlock,
 )
 
-SIM_SERIAL = "lychee-sim"
+SIM_SERIAL = "0A1B2C"
 LOG_LEVELS = {
-    "off": AXON_LOG_OFF,
-    "error": AXON_LOG_ERROR,
-    "warn": AXON_LOG_WARN,
-    "info": AXON_LOG_INFO,
-    "debug": AXON_LOG_DEBUG,
-    "trace": AXON_LOG_TRACE,
+    "off": LogLevel.OFF,
+    "error": LogLevel.ERROR,
+    "warn": LogLevel.WARN,
+    "info": LogLevel.INFO,
+    "debug": LogLevel.DEBUG,
+    "trace": LogLevel.TRACE,
 }
 
 
-def init_log(lib, level_name):
-    level = LOG_LEVELS[level_name]
-    if level == AXON_LOG_OFF:
-        return
-    config = AxonLogConfig()
-    config.level = level
-    config.log_path = None
-    lib.axon_log_init(ctypes.byref(config))
+def init_log(axon, level_name):
+    axon.log_init(LOG_LEVELS[level_name])
 
 
 class WaveformBuffer:
@@ -92,7 +85,7 @@ class LycheeMonitor:
         self.status = tk.StringVar(value="正在启动 Lychee 监听…")
 
         self._build_ui()
-        init_log(self.axon._lib, args.log_level)
+        init_log(self.axon, args.log_level)
         self.axon.set_device_callback(self._on_device_event)
         self._start_listener()
         self.root.protocol("WM_DELETE_WINDOW", self.close)
@@ -128,9 +121,9 @@ class LycheeMonitor:
     def _start_listener(self):
         try:
             if self.args.sim:
-                self.axon.add_simulator(SIM_SERIAL, channels=3, sample_rate_hz=250.0)
                 self.axon.start()
-                self.status.set("模拟器已就绪，选择 lychee-sim 开始采集")
+                self.axon.start_simulator(SensorType.PFC, SIM_SERIAL)
+                self.status.set(f"模拟器已就绪，选择 {SIM_SERIAL} 开始采集")
             else:
                 self.axon.start()
                 if self.args.serial:
@@ -202,12 +195,13 @@ class LycheeMonitor:
                 bp_low, bp_high = 0.4, 70.0
                 bp_q = math.sqrt(bp_low * bp_high) / (bp_high - bp_low)
                 session.add_filter(AxonFilterStageConfig(
-                    filter_type=1, kind=2, cutoff_hz=bp_low, cutoff2_hz=bp_high,
+                    filter_type=FilterType.IIR, kind=FilterKind.BAND_PASS,
+                    cutoff_hz=bp_low, cutoff2_hz=bp_high,
                     sample_rate_hz=info.sample_rate_hz, order=1, q=bp_q,
                 ))
             if self.args.notch:
                 session.add_filter(AxonFilterStageConfig(
-                    filter_type=1, kind=4, cutoff_hz=50.0,
+                    filter_type=FilterType.IIR, kind=FilterKind.NOTCH, cutoff_hz=50.0,
                     sample_rate_hz=info.sample_rate_hz, order=4, q=30.0,
                 ))
         except AxonError as error:

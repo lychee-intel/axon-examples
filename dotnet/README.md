@@ -19,6 +19,12 @@ WPF desktop application that displays real-time EEG waveforms from a Lychee devi
 The `Axon` NuGet package (including the native `axon.dll`) is included in `dotnet/packages/`.
 To rebuild it from the `axon` repo:
 
+```bash
+# In the axon repository
+pwsh ./scripts/build-dotnet-nuget.ps1 -Release
+# Copy the generated package from axon/outputs/ into dotnet/packages/.
+```
+
 ## Running
 
 ```bash

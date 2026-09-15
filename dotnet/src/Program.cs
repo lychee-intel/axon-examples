@@ -1,5 +1,5 @@
 using System.Windows;
-using Axon.Native;
+using Axon;
 
 namespace LycheeMonitor;
 
@@ -9,7 +9,7 @@ public sealed record CommandLineArgs(
     double WindowSeconds,
     bool NoFilter,
     bool Notch,
-    uint LogLevel);
+    LogLevel LogLevel);
 
 internal static class Program
 {
@@ -73,13 +73,13 @@ internal static class Program
 
         var level = logLevel switch
         {
-            "off" => AxonLogLevel.Off,
-            "error" => AxonLogLevel.Error,
-            "warn" => AxonLogLevel.Warn,
-            "info" => AxonLogLevel.Info,
-            "debug" => AxonLogLevel.Debug,
-            "trace" => AxonLogLevel.Trace,
-            _ => (uint?)null,
+            "off" => LogLevel.Off,
+            "error" => LogLevel.Error,
+            "warn" => LogLevel.Warn,
+            "info" => LogLevel.Info,
+            "debug" => LogLevel.Debug,
+            "trace" => LogLevel.Trace,
+            _ => (LogLevel?)null,
         };
 
         if (level is null)
