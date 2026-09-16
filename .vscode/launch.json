@@ -2,17 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Lychee Monitor (模拟器)",
-      "type": "debugpy",
-      "request": "launch",
-      "program": "${workspaceFolder}/python/lychee_monitor.py",
-      "args": ["--sim"],
-      "cwd": "${workspaceFolder}/python",
-      "python": "${workspaceFolder}/python/.venv/Scripts/python.exe",
-      "console": "integratedTerminal"
-    },
-    {
-      "name": "Python: Lychee Monitor (硬件)",
+      "name": "Python: Lychee Monitor",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/python/lychee_monitor.py",

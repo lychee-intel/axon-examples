@@ -7,7 +7,7 @@ from pathlib import Path
 from axon import SampleBlock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from lychee_monitor import WaveformBuffer
+from lychee_monitor import WaveformBuffer, can_add_simulator, parse_args
 
 
 class TestWaveformBuffer(unittest.TestCase):
@@ -32,6 +32,20 @@ class TestWaveformBuffer(unittest.TestCase):
         self.assertEqual(buffer.channel_samples(0), [5, 6, 7, 8])
         self.assertEqual(buffer.channel_samples(1), [50, 60, 70, 80])
         self.assertEqual(buffer.sample_rate_hz, 4.0)
+
+
+class TestMonitorConfiguration(unittest.TestCase):
+    def test_monitor_starts_without_device_command_line_arguments(self):
+        args = parse_args([])
+
+        self.assertFalse(hasattr(args, "sim"))
+        self.assertFalse(hasattr(args, "serial"))
+
+    def test_simulator_can_be_added_only_before_collection(self):
+        self.assertTrue(can_add_simulator(axon_started=True, simulator_added=False, collecting=False))
+        self.assertFalse(can_add_simulator(axon_started=False, simulator_added=False, collecting=False))
+        self.assertFalse(can_add_simulator(axon_started=True, simulator_added=True, collecting=False))
+        self.assertFalse(can_add_simulator(axon_started=True, simulator_added=False, collecting=True))
 
 
 if __name__ == "__main__":

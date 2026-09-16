@@ -11,7 +11,7 @@
 ```shell
 cd axon-examples\python
 uv venv
-uv pip install <axon-*.whl 的绝对路径>
+uv pip install --reinstall D:\code\Rust\axon\bindings\python\dist\axon-0.1.0-py3-none-win_amd64.whl
 ```
 
 ## lychee_monitor.py — Lychee EEG 实时波形监测
@@ -21,19 +21,14 @@ uv pip install <axon-*.whl 的绝对路径>
 ### 快速开始
 
 ```bash
-# 无硬件（模拟器模式）
-uv run python lychee_monitor.py --sim
-
-# 有 lychee 硬件（配网完成后，局域网内上电后自动发现）
+# 无硬件或有硬件
 uv run python lychee_monitor.py
 
-# 已知 serial
-uv run python lychee_monitor.py --serial AABBCC
 ```
 
-打开窗口后，从顶部的传感器列表选择设备，再点击“开始采集”。窗口关闭时会停止 session 与监听器。
+打开窗口后，点击“添加模拟器”即可创建一个内置模拟数据源；Lychee 硬件仍会自动发现。设备出现在顶部列表后选择设备，再点击“开始采集”。窗口关闭时会停止 session、模拟器与监听器。
 
 ### lychee 设备 serial 格式
 
 lychee 设备 serial 为 6 位大写十六进制（如 `A1B2C3`），  
-通过 `axon_device_callback` 设备上线事件自动获得，或在 `--serial` 参数中直接指定。
+通过 `axon_device_callback` 设备上线事件自动获得，并从页面顶部的设备列表选择。

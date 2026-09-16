@@ -35,6 +35,10 @@ def init_log(axon, level_name):
     axon.log_init(LOG_LEVELS[level_name])
 
 
+def can_add_simulator(axon_started, simulator_added, collecting):
+    return axon_started and not simulator_added and not collecting
+
+
 class WaveformBuffer:
     """Keeps a fixed-duration, channel-major window of EEG samples."""
 
@@ -78,6 +82,8 @@ class LycheeMonitor:
         self.args = args
         self.axon = Axon()
         self.session = None
+        self._axon_started = False
+        self._simulator_id = None
         self.device_events = Queue()
         self.devices = {}
         self.buffer = WaveformBuffer(args.window)
@@ -104,6 +110,10 @@ class LycheeMonitor:
             controls, textvariable=self.selected_device, state="readonly", width=42
         )
         self.device_picker.pack(side=tk.LEFT, padx=(0, 8))
+        self.simulator_button = ttk.Button(
+            controls, text="添加模拟器", command=self.add_simulator
+        )
+        self.simulator_button.pack(side=tk.LEFT, padx=(0, 8))
         self.start_button = ttk.Button(controls, text="开始采集", command=self.start_session)
         self.start_button.pack(side=tk.LEFT)
         ttk.Label(controls, textvariable=self.status).pack(side=tk.RIGHT)
@@ -120,20 +130,24 @@ class LycheeMonitor:
 
     def _start_listener(self):
         try:
-            if self.args.sim:
-                self.axon.start()
-                self.axon.start_lychee_simulator(LycheeSensorType.PFC, SIM_SERIAL)
-                self.status.set(f"模拟器已就绪，选择 {SIM_SERIAL} 开始采集")
-            else:
-                self.axon.start()
-                if self.args.serial:
-                    self._add_device(self.args.serial, "指定的传感器")
-                    self.status.set("已指定传感器，选择后开始采集")
-                else:
-                    self.status.set("正在监听 TCP:31200 / UDP:31300 / 组播 239.0.0.6:31400")
+            self.axon.start()
+            self._axon_started = True
+            self.status.set("正在监听 TCP:31200 / UDP:31300 / 组播 239.0.0.6:31400")
         except AxonError as error:
             self.status.set(f"监听启动失败：{error}")
             messagebox.showerror("Lychee 监听失败", str(error), parent=self.root)
+
+    def add_simulator(self):
+        if not can_add_simulator(self._axon_started, self._simulator_id is not None, self.session is not None):
+            return
+        try:
+            self._simulator_id = self.axon.start_lychee_simulator(
+                LycheeSensorType.PFC, SIM_SERIAL
+            )
+            self.simulator_button.configure(state="disabled")
+            self.status.set("模拟器已添加，正在等待设备出现在列表中…")
+        except AxonError as error:
+            messagebox.showerror("模拟器添加失败", str(error), parent=self.root)
 
     def _on_device_event(self, serial, name, _model, _channels, _sample_rate, connected):
         # Called from a Rust worker thread: transfer work to the Tk thread only.
@@ -212,6 +226,7 @@ class LycheeMonitor:
         self.buffer.clear()
         self.device_picker.configure(state="disabled")
         self.start_button.configure(state="disabled")
+        self.simulator_button.configure(state="disabled")
         self.status.set(f"正在采集 {serial} · {info.num_channels} 通道 · {info.sample_rate_hz:.0f} Hz")
 
     def _draw(self):
@@ -256,24 +271,27 @@ class LycheeMonitor:
         try:
             if self.session:
                 self.session.dispose()
+            if self._simulator_id is not None:
+                self.axon.stop_lychee_simulator(self._simulator_id)
             self.axon.dispose()
         finally:
             self.root.destroy()
 
 
-def main():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Lychee EEG 实时波形监测器")
-    parser.add_argument("--sim", action="store_true", help="使用内置模拟器")
-    parser.add_argument("--serial", metavar="HEX", help="直接添加已知设备 serial")
     parser.add_argument("--window", type=float, default=10.0, help="波形显示时窗（秒）")
     parser.add_argument("--no-filter", action="store_true", help="禁用 0.4–70 Hz 带通滤波")
     parser.add_argument("--notch", action="store_true", help="叠加 50 Hz 陷波（Q=30，接硬件时使用）")
     parser.add_argument("--log-level", choices=LOG_LEVELS, default="off", help="Rust 日志级别")
-    args = parser.parse_args()
-    if args.sim and args.serial:
-        parser.error("--sim 和 --serial 不能同时使用")
+    args = parser.parse_args(argv)
     if args.window <= 0:
         parser.error("--window 必须大于 0")
+    return args
+
+
+def main():
+    args = parse_args()
 
     root = tk.Tk()
     LycheeMonitor(root, args)
