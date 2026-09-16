@@ -12,7 +12,7 @@ namespace LycheeMonitor;
 
 public partial class MainViewModel : ObservableObject, IDisposable
 {
-    private const string SimSerial = "lychee-sim";
+    private const string SimSerial = "010203";
 
     private readonly CommandLineArgs _args;
     private readonly Axon.Axon _axon;
@@ -21,6 +21,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly Dictionary<string, string> _deviceMap = new();
     private readonly DispatcherTimer _timer;
     private AxonSession? _session;
+    private uint? _simulatorId;
     private bool _disposed;
 
     // ── Dialog service (injected by View) ────────────────────────────────────
@@ -42,7 +43,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(StartCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(StopCollectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddSimulatorCommand))]
     private bool _isCollecting;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(AddSimulatorCommand))]
+    private bool _axonStarted;
 
     // ── Chart ────────────────────────────────────────────────────────────────
 
@@ -88,33 +94,51 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            if (_args.Sim)
+            _axon.Start();
+            AxonStarted = true;
+
+            if (_args.Serial is { } serial)
             {
-                _axon.Start();
-                _axon.AddSimulator(SimSerial, numChannels: 3, sampleRateHz: 250.0);
-                StatusText = "Simulator ready, select lychee-sim to start";
+                AddDevice(serial, "Specified sensor");
+                StatusText = "Sensor specified, select to start";
             }
             else
             {
-                _axon.Start();
-                if (_args.Serial is { } serial)
-                {
-                    AddDevice(serial, "Specified sensor");
-                    StatusText = "Sensor specified, select to start";
-                }
-                else
-                {
-                    StatusText = "Listening on TCP:31200 / UDP:31300 / Multicast 239.0.0.6:31400";
-                }
+                StatusText = "Axon started · listening on TCP:31200 / UDP:31300 / Multicast 239.0.0.6:31400";
             }
         }
         catch (AxonException ex)
         {
+            AxonStarted = false;
             StatusText = $"Listener failed: {ex.Message}";
             _showDialog?.Invoke(ex.Message, "Lychee listener failed",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
+    // ── Simulator management ────────────────────────────────────────────────
+
+    [RelayCommand(CanExecute = nameof(CanAddSimulator))]
+    private void AddSimulator()
+    {
+        try
+        {
+            _simulatorId = _axon.AddLycheeSimulator(SimSerial, numChannels: 3, sampleRateHz: 250.0);
+            StatusText = "Lychee simulator added, select lychee-sim to start";
+        }
+        catch (AxonException ex)
+        {
+            _showDialog?.Invoke(ex.Message, "Failed to add simulator",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            AddSimulatorCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    private bool CanAddSimulator()
+        => SimulatorControlState.CanAddSimulator(AxonStarted, _simulatorId.HasValue, IsCollecting);
 
     // ── Timer tick ───────────────────────────────────────────────────────────
 
@@ -441,11 +465,17 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _disposed = true;
         _timer.Stop();
 
+        try { _session?.Dispose(); }
+        catch { /* best-effort */ }
+
         try
         {
-            _session?.Dispose();
-            _axon.Dispose();
+            if (_simulatorId is { } simulatorId)
+                _axon.StopLycheeSimulator(simulatorId);
         }
+        catch { /* best-effort */ }
+
+        try { _axon.Dispose(); }
         catch { /* best-effort */ }
     }
 }

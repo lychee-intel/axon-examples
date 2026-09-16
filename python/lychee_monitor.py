@@ -16,7 +16,7 @@ from axon import (
     FilterKind,
     FilterType,
     LogLevel,
-    SensorType,
+    LycheeSensorType,
     SampleBlock,
 )
 
@@ -122,7 +122,7 @@ class LycheeMonitor:
         try:
             if self.args.sim:
                 self.axon.start()
-                self.axon.start_simulator(SensorType.PFC, SIM_SERIAL)
+                self.axon.start_lychee_simulator(LycheeSensorType.PFC, SIM_SERIAL)
                 self.status.set(f"模拟器已就绪，选择 {SIM_SERIAL} 开始采集")
             else:
                 self.axon.start()

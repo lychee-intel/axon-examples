@@ -105,6 +105,11 @@
                       SelectedItem="{Binding SelectedDevice}"
                       IsEnabled="{Binding IsCollecting, Converter={StaticResource InvertBool}}"
                       Style="{StaticResource DarkCombo}"/>
+            <Button Content="Add simulator"
+                    Width="110" Height="28"
+                    Margin="8,0,8,0"
+                    Command="{Binding AddSimulatorCommand}"
+                    Style="{StaticResource GreenButton}"/>
             <Button Content="Start"
                     Width="90" Height="28"
                     Margin="8,0,8,0"

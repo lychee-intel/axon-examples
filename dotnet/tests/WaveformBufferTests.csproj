@@ -17,6 +17,7 @@
   <ItemGroup>
     <!-- Reference the source files directly to avoid WinForms/ScottPlot dependency in tests -->
     <Compile Include="..\src\WaveformBuffer.cs" Link="WaveformBuffer.cs" />
+    <Compile Include="..\src\SimulatorControlState.cs" Link="SimulatorControlState.cs" />
   </ItemGroup>
 
 </Project>

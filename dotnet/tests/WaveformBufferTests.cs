@@ -5,6 +5,30 @@ namespace LycheeMonitor.Tests;
 public class WaveformBufferTests
 {
     [Fact]
+    public void SimulatorControl_IsEnabledOnlyAfterAxonStarts()
+    {
+        Assert.False(SimulatorControlState.CanAddSimulator(
+            axonStarted: false,
+            simulatorAdded: false,
+            isCollecting: false));
+
+        Assert.True(SimulatorControlState.CanAddSimulator(
+            axonStarted: true,
+            simulatorAdded: false,
+            isCollecting: false));
+
+        Assert.False(SimulatorControlState.CanAddSimulator(
+            axonStarted: true,
+            simulatorAdded: true,
+            isCollecting: false));
+
+        Assert.False(SimulatorControlState.CanAddSimulator(
+            axonStarted: true,
+            simulatorAdded: false,
+            isCollecting: true));
+    }
+
+    [Fact]
     public void Append_SingleBlock_StoresSamples()
     {
         var buffer = new WaveformBuffer(windowSeconds: 1.0);

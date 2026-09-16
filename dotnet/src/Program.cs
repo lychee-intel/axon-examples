@@ -4,7 +4,6 @@ using Axon;
 namespace LycheeMonitor;
 
 public sealed record CommandLineArgs(
-    bool Sim,
     string? Serial,
     double WindowSeconds,
     bool NoFilter,
@@ -27,7 +26,6 @@ internal static class Program
 
     private static CommandLineArgs? ParseArgs(string[] args)
     {
-        var sim = false;
         string? serial = null;
         var window = 10.0;
         var noFilter = false;
@@ -38,9 +36,6 @@ internal static class Program
         {
             switch (args[i])
             {
-                case "--sim":
-                    sim = true;
-                    break;
                 case "--serial":
                     if (i + 1 >= args.Length) return Error("--serial requires a HEX argument");
                     serial = args[++i];
@@ -68,9 +63,6 @@ internal static class Program
             }
         }
 
-        if (sim && serial is not null)
-            return Error("--sim and --serial cannot be used together");
-
         var level = logLevel switch
         {
             "off" => LogLevel.Off,
@@ -85,7 +77,7 @@ internal static class Program
         if (level is null)
             return Error($"Invalid log level: {logLevel} (valid: off, error, warn, info, debug, trace)");
 
-        return new CommandLineArgs(sim, serial, window, noFilter, notch, level.Value);
+        return new CommandLineArgs(serial, window, noFilter, notch, level.Value);
     }
 
     private static CommandLineArgs? Error(string message)
@@ -104,7 +96,6 @@ internal static class Program
             Lychee EEG real-time waveform monitor
 
             Options:
-              --sim                 Use built-in simulator (no hardware needed)
               --serial HEX          Connect to a device by its hex serial
               --window SECONDS      Waveform display window (default 10.0)
               --no-filter           Disable the 0.4–70 Hz bandpass filter

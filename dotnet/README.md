@@ -2,12 +2,12 @@
 
 [中文](README.zh-CN.md)
 
-WPF desktop application that displays real-time EEG waveforms from a Lychee device or built-in simulator, using the Axon C# binding and ScottPlot for visualization.
+WPF desktop application that displays real-time EEG waveforms from a Lychee device or built-in Lychee PFC simulator, using the Axon C# binding and ScottPlot for visualization.
 
 ## Features
 
 - **Device discovery** — auto-detects Lychee EEG hardware on the LAN
-- **Simulator mode** — `--sim` creates a virtual 3-channel, 250 Hz device
+- **Simulator** — click **Add simulator** after Axon starts to create a virtual 3-channel, 250 Hz device
 - **Real-time waveforms** — scrolling multi-channel EEG display with auto-scaling
 - **0.4–70 Hz bandpass filter** — single-section IIR filter applied by default, matching the native debugger (`--no-filter` to disable, `--notch` to add a 50 Hz notch)
 - **Dark theme** — matches the Python example's visual style
@@ -28,14 +28,14 @@ pwsh ./scripts/build-dotnet-nuget.ps1 -Release
 ## Running
 
 ```bash
-# Simulator mode (no hardware needed)
-dotnet run --project src -- --sim
+# Start the app, then click Add simulator (no hardware needed)
+dotnet run --project src
 
 # With a known device serial
 dotnet run --project src -- --serial AABBCC
 
 # Custom window duration and no filter
-dotnet run --project src -- --sim --window 10 --no-filter
+dotnet run --project src -- --window 10 --no-filter
 
 # Show help
 dotnet run --project src -- --help
@@ -45,7 +45,6 @@ dotnet run --project src -- --help
 
 | Option              | Description                                          |
 | ------------------- | ---------------------------------------------------- |
-| `--sim`             | Use the built-in simulator (no hardware)             |
 | `--serial HEX`      | Add a device by its 6-char hex serial                |
 | `--window SECONDS`  | Waveform display window (default 10.0)               |
 | `--no-filter`       | Disable the 0.4–70 Hz bandpass filter                |
@@ -66,7 +65,7 @@ dotnet/
 ├── LycheeMonitor.sln
 ├── nuget.config                   # Local NuGet feed pointing to packages/
 ├── packages/
-│   └── Axon.0.1.0.nupkg          # Axon binding NuGet package (with native lib)
+│   └── Axon.0.2.0.nupkg          # Axon binding NuGet package (with native lib)
 ├── src/
 │   ├── LycheeMonitor.csproj       # WPF app (net8.0-windows)
 │   ├── Program.cs                 # Entry point + CLI arg parsing
