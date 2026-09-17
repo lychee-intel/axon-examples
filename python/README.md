@@ -11,7 +11,7 @@
 ```shell
 cd axon-examples\python
 uv venv
-uv pip install --reinstall D:\code\Rust\axon\bindings\python\dist\axon-0.1.0-py3-none-win_amd64.whl
+uv pip install --reinstall path/to/your/wheel/axon-*.*.*-py3-none-win_amd64.whl
 ```
 
 ## lychee_monitor.py — Lychee EEG 实时波形监测
