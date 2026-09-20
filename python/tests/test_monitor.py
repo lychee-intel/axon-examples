@@ -7,7 +7,31 @@ from pathlib import Path
 from axon import SampleBlock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from lychee_monitor import WaveformBuffer, can_add_simulator, parse_args
+from lychee_monitor import LycheeMonitor, WaveformBuffer, can_add_simulator, parse_args
+
+
+class _FakeWidget:
+    def __init__(self):
+        self.configured = {}
+
+    def configure(self, **kwargs):
+        self.configured.update(kwargs)
+
+
+class _FakeSession:
+    def __init__(self):
+        self.disposed = False
+
+    def dispose(self):
+        self.disposed = True
+
+
+class _FakeVariable:
+    def __init__(self):
+        self.value = None
+
+    def set(self, value):
+        self.value = value
 
 
 class TestWaveformBuffer(unittest.TestCase):
@@ -47,6 +71,25 @@ class TestMonitorConfiguration(unittest.TestCase):
         self.assertFalse(can_add_simulator(axon_started=False, simulator_added=False, collecting=False))
         self.assertFalse(can_add_simulator(axon_started=True, simulator_added=True, collecting=False))
         self.assertFalse(can_add_simulator(axon_started=True, simulator_added=False, collecting=True))
+
+    def test_stop_session_releases_session_and_restores_start_controls(self):
+        monitor = LycheeMonitor.__new__(LycheeMonitor)
+        monitor.session = _FakeSession()
+        monitor.buffer = WaveformBuffer()
+        monitor.device_picker = _FakeWidget()
+        monitor.start_button = _FakeWidget()
+        monitor.stop_button = _FakeWidget()
+        monitor.simulator_button = _FakeWidget()
+        monitor._simulator_id = None
+        monitor.status = _FakeVariable()
+
+        monitor.stop_session()
+
+        self.assertIsNone(monitor.session)
+        self.assertTrue(monitor.buffer.channel_count == 0)
+        self.assertTrue(monitor.start_button.configured["state"] == "normal")
+        self.assertTrue(monitor.stop_button.configured["state"] == "disabled")
+        self.assertTrue(monitor.device_picker.configured["state"] == "readonly")
 
 
 if __name__ == "__main__":

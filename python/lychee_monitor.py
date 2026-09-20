@@ -117,6 +117,10 @@ class LycheeMonitor:
         self.simulator_button.pack(side=tk.LEFT, padx=(0, 8))
         self.start_button = ttk.Button(controls, text="开始采集", command=self.start_session)
         self.start_button.pack(side=tk.LEFT)
+        self.stop_button = ttk.Button(
+            controls, text="停止采集", command=self.stop_session, state=tk.DISABLED
+        )
+        self.stop_button.pack(side=tk.LEFT, padx=(8, 0))
         ttk.Label(controls, textvariable=self.status).pack(side=tk.RIGHT)
 
         self.canvas = tk.Canvas(
@@ -227,8 +231,26 @@ class LycheeMonitor:
         self.buffer.clear()
         self.device_picker.configure(state="disabled")
         self.start_button.configure(state="disabled")
+        self.stop_button.configure(state="normal")
         self.simulator_button.configure(state="disabled")
         self.status.set(f"正在采集 {serial} · {info.num_channels} 通道 · {info.sample_rate_hz:.0f} Hz")
+
+    def stop_session(self):
+        session = self.session
+        if session is None:
+            return
+        try:
+            session.dispose()
+        finally:
+            self.session = None
+            self.buffer.clear()
+            self.device_picker.configure(state="readonly")
+            self.start_button.configure(state="normal")
+            self.stop_button.configure(state="disabled")
+            self.simulator_button.configure(
+                state="disabled" if self._simulator_id is not None else "normal"
+            )
+            self.status.set("采集已停止，可重新开始")
 
     def _draw(self):
         canvas = self.canvas
@@ -270,8 +292,7 @@ class LycheeMonitor:
 
     def close(self):
         try:
-            if self.session:
-                self.session.dispose()
+            self.stop_session()
             if self._simulator_id is not None:
                 self.axon.stop_lychee_simulator(self._simulator_id)
             self.axon.dispose()
