@@ -19,14 +19,15 @@ class TestWaveformBuffer(unittest.TestCase):
             sample_rate_hz=4.0,
             num_channels=2,
             num_samples=4,
-            data=[1, 2, 3, 4, 10, 20, 30, 40],
+            # SampleBlock.data is interleaved: [s0c0, s0c1, s1c0, s1c1, ...].
+            data=[1, 10, 2, 20, 3, 30, 4, 40],
         ))
         buffer.append(SampleBlock(
             start_timestamp=1_000_000,
             sample_rate_hz=4.0,
             num_channels=2,
             num_samples=4,
-            data=[5, 6, 7, 8, 50, 60, 70, 80],
+            data=[5, 50, 6, 60, 7, 70, 8, 80],
         ))
 
         self.assertEqual(buffer.channel_samples(0), [5, 6, 7, 8])

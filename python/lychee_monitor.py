@@ -40,7 +40,7 @@ def can_add_simulator(axon_started, simulator_added, collecting):
 
 
 class WaveformBuffer:
-    """Keeps a fixed-duration, channel-major window of EEG samples."""
+    """Keeps a fixed-duration window of interleaved EEG samples."""
 
     def __init__(self, window_seconds=5.0):
         self.window_seconds = window_seconds
@@ -60,8 +60,9 @@ class WaveformBuffer:
 
         capacity = max(1, math.ceil(self.window_seconds * self.sample_rate_hz))
         for channel, samples in enumerate(self._channels):
-            offset = channel * block.num_samples
-            samples.extend(block.data[offset:offset + block.num_samples])
+            samples.extend(
+                block.data[channel::block.num_channels][:block.num_samples]
+            )
             while len(samples) > capacity:
                 samples.popleft()
 
