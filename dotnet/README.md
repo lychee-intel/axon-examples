@@ -16,14 +16,23 @@ WPF desktop application that displays real-time EEG waveforms from a Lychee devi
 
 - .NET 8.0+ SDK
 
-The `Axon` NuGet package (including the native `axon.dll`) is included in `dotnet/packages/`.
-To rebuild it from the `axon` repo:
+The example targets the Axon C# binding and C ABI 0.2. Its NuGet package includes the matching native `axon.dll`. The local feed pins `Axon` to `packages/` and keeps the global package cache under `../target/dotnet-nuget-cache-abi020`.
 
-```bash
-# In the axon repository
-pwsh ./scripts/build-dotnet-nuget.ps1 -Release
-# Copy the generated package from axon/outputs/ into dotnet/packages/.
+From this directory, rebuild the package from the sibling `axon` checkout on Windows PowerShell:
+
+```powershell
+$axon = (Resolve-Path ..\..\axon).Path
+cargo build --manifest-path "$axon\Cargo.toml" -p axon-ffi --release
+$stage = Join-Path $PWD '..\target\axon-package-abi020'
+$native = Join-Path $stage 'win-x64\native'
+New-Item -ItemType Directory -Force $native | Out-Null
+Copy-Item "$axon\target\release\axon.dll" (Join-Path $native 'axon.dll') -Force
+dotnet pack (Join-Path $axon 'bindings\dotnet\Axon\Axon.csproj') -c Release "-p:AxonNativeLibDir=$stage" -o .\packages
+dotnet restore src --force --no-http-cache
+dotnet restore tests --force --no-http-cache
 ```
+
+The sample selects a uniformly sampled EEG stream explicitly. When replacing an existing package with the same version, remove only `../target/dotnet-nuget-cache-abi020/axon/0.2.0` before restoring so NuGet reads the new local package.
 
 ## Running
 

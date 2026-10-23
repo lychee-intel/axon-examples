@@ -35,7 +35,7 @@ public sealed class WaveformBuffer
 
     /// <summary>
     /// Append a block of samples. Thread-safe — called from the Axon callback thread.
-    /// <paramref name="data"/> is channel-major: [ch0_s0, ch0_s1, ..., ch1_s0, ...]
+    /// <paramref name="data"/> is sample-interleaved: [s0_ch0, s0_ch1, ..., s1_ch0, ...]
     /// </summary>
     public void Append(int numChannels, int numSamples, double sampleRateHz, float[] data)
     {
@@ -61,19 +61,18 @@ public sealed class WaveformBuffer
             {
                 var buf = _channels[ch];
                 var count = _counts[ch];
-                var offset = ch * numSamples;
-
                 for (var i = 0; i < numSamples; i++)
                 {
+                    var sample = data[i * numChannels + ch];
                     if (count < _capacity)
                     {
-                        buf[count++] = data[offset + i];
+                        buf[count++] = sample;
                     }
                     else
                     {
                         // Shift left by 1 and append at end
                         Array.Copy(buf, 1, buf, 0, _capacity - 1);
-                        buf[_capacity - 1] = data[offset + i];
+                        buf[_capacity - 1] = sample;
                     }
                 }
                 _counts[ch] = count;

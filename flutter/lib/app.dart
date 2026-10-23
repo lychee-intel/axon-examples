@@ -6,6 +6,7 @@ import 'spectrum_canvas.dart';
 import 'signal_canvas.dart';
 import 'waveform.dart';
 import 'filter_config.dart';
+import 'device_stream_config.dart';
 
 /// 数据源：模拟器 / 力之真实数据（三路监听）/ EDF 文件。
 enum _DataSource { simulator, lychee }
@@ -59,7 +60,7 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
 
   void _start() {
     try {
-      final session = switch (_dataSource) {
+      final serial = switch (_dataSource) {
         _DataSource.simulator => () {
             _axon.start();
             final simulator = _axon.startLycheeSimulator(
@@ -67,18 +68,24 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
               serial: '0A1B2C',
             );
             _simulator = simulator;
-            return _axon.newSession(simulator.serial);
+            return simulator.serial;
           }(),
         _DataSource.lychee => () {
             _axon.start();
             final devices = _axon.devices();
             if (devices.isEmpty) throw StateError('尚未发现已连接设备');
-            return _axon.newSession(devices.first.serial);
+            return devices.first.serial;
           }(),
       };
+      final stream = selectDemoStream(_axon.deviceStreams(serial));
+      final session = _axon.newSession(serial, streamId: stream.id);
       _session = session;
+      _numChannels = stream.numChannels;
+      _sampleRateHz = stream.sampleRateHz;
+      _channel = 0;
+      _recorded.clear();
       for (final filter in _filters) {
-        session.addFilter(filter.toStage(_sampleRateHz));
+        session.addFilter(filter.toStage());
       }
       // 默认频谱配置：fft 1024、hop 512（50% 重叠）、Hann、symmetric、Amplitude 刻度。
       session.configureSpectrum(fftSize: 1024, hop: 512);
@@ -94,14 +101,13 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
         case _DataSource.lychee:
           setState(() {
             _running = true;
-            _numChannels = 3;
-            _sampleRateHz = 250;
             _channel = 0;
           });
         case _DataSource.simulator:
           setState(() => _running = true);
       }
     } catch (e) {
+      _stop();
       _showMessage('启动失败：$e');
     }
   }
@@ -113,7 +119,6 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
     _session = null;
     _simulator?.stop();
     _simulator = null;
-    if (_dataSource == _DataSource.lychee) _axon.stop();
     setState(() => _running = false);
   }
 
@@ -151,6 +156,8 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
   @override
   void dispose() {
     _dataSub?.cancel();
+    _session?.dispose();
+    _simulator?.stop();
     _axon.dispose();
     super.dispose();
   }
@@ -255,13 +262,15 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: _viewMode == 1
-                      ? SpectrumCanvas(stream: _session?.spectrum ?? const Stream.empty(), channel: _channel)
+                      ? SpectrumCanvas(key: ObjectKey(_session), stream: _session?.spectrum ?? const Stream.empty(), channel: _channel)
                       : _viewMode == 2
                           ? SignalCanvas(
+                              key: ObjectKey(_session),
                               stream: _session?.bandPower ?? const Stream.empty(),
                               cognitiveStream: _session?.cognitive,
                             )
                           : WaveformCanvas(
+                          key: ObjectKey(_session),
                           stream: _session?.signal ?? const Stream.empty(),
                           numChannels: _numChannels,
                           channelLabels: _channelLabels,

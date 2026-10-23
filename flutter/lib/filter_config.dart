@@ -46,14 +46,13 @@ class FilterEntry {
       kind == FilterKind.notch;
 
   /// 转为 FFI 结构。
-  AxonFilterStage toStage(double sampleRateHz) => AxonFilterStage(
+  AxonFilterStage toStage() => AxonFilterStage(
         filterType: FilterType.iir,
         kind: kind,
         cutoffHz: cutoffHz,
-        cutoff2Hz: cutoff2Hz,
+        cutoff2Hz: needsCutoff2 ? cutoff2Hz : 0,
         order: order,
-        q: q,
-        sampleRateHz: sampleRateHz,
+        q: needsQ ? q : 0,
       );
 }
 

@@ -12,12 +12,14 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.*" />
     <PackageReference Include="xunit" Version="2.*" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.*" />
+    <PackageReference Include="Axon" Version="0.2.0" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Reference the source files directly to avoid WinForms/ScottPlot dependency in tests -->
     <Compile Include="..\src\WaveformBuffer.cs" Link="WaveformBuffer.cs" />
     <Compile Include="..\src\SimulatorControlState.cs" Link="SimulatorControlState.cs" />
+    <Compile Include="..\src\CollectionSessionStartup.cs" Link="CollectionSessionStartup.cs" />
   </ItemGroup>
 
 </Project>

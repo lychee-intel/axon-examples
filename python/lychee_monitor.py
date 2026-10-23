@@ -52,6 +52,11 @@ class WaveformBuffer:
         self._channels = []
 
     def append(self, block: SampleBlock):
+        # This canvas maps samples to a uniform time grid. Irregular blocks carry
+        # explicit offsets and cannot be plotted correctly with sample_rate_hz.
+        if block.sample_offsets_us is not None:
+            self.clear()
+            return
         if block.num_channels <= 0 or block.num_samples <= 0:
             return
         if len(self._channels) != block.num_channels or self.sample_rate_hz != block.sample_rate_hz:
@@ -154,7 +159,7 @@ class LycheeMonitor:
         except AxonError as error:
             messagebox.showerror("模拟器添加失败", str(error), parent=self.root)
 
-    def _on_device_event(self, serial, name, _model, _channels, _sample_rate, connected):
+    def _on_device_event(self, serial, name, _model, connected):
         # Called from a Rust worker thread: transfer work to the Tk thread only.
         self.device_events.put((serial, name, connected))
 
@@ -204,26 +209,38 @@ class LycheeMonitor:
         if not serial:
             messagebox.showinfo("请选择传感器", "请先从列表中选择一个已发现的 Lychee 传感器。", parent=self.root)
             return
+        session = None
         try:
-            info = self.axon.device_info(serial)
-            session = self.axon.new_session(serial)
+            eeg_stream = next(
+                (stream for stream in self.axon.device_streams(serial)
+                 if stream.id == "eeg" and stream.kind == 0),
+                None,
+            )
+            if eeg_stream is None:
+                raise AxonError(-1, "设备没有可采集的 EEG 流")
+            if eeg_stream.sampling_mode != 0:
+                raise AxonError(-1, "实时波形监测只支持均匀采样的 EEG 流")
+
+            session = self.axon.new_session(serial, stream_id=eeg_stream.id)
             if not self.args.no_filter:
                 # Same default as the native debugger: one IIR band-pass section
-                # at 0.4–70 Hz. Q must be passed explicitly (the FFI rejects 0)
-                # and is derived exactly like the native side: q = f0 / bandwidth.
+                # at 0.4–70 Hz. Pass Q explicitly to match the native debugger;
+                # q = f0 / bandwidth for a Butterworth-style band-pass section.
                 bp_low, bp_high = 0.4, 70.0
                 bp_q = math.sqrt(bp_low * bp_high) / (bp_high - bp_low)
                 session.add_filter(AxonFilterStageConfig(
                     filter_type=FilterType.IIR, kind=FilterKind.BAND_PASS,
                     cutoff_hz=bp_low, cutoff2_hz=bp_high,
-                    sample_rate_hz=info.sample_rate_hz, order=1, q=bp_q,
+                    order=1, q=bp_q,
                 ))
             if self.args.notch:
                 session.add_filter(AxonFilterStageConfig(
                     filter_type=FilterType.IIR, kind=FilterKind.NOTCH, cutoff_hz=50.0,
-                    sample_rate_hz=info.sample_rate_hz, order=4, q=30.0,
+                    order=4, q=30.0,
                 ))
-        except AxonError as error:
+        except Exception as error:
+            if session is not None:
+                session.dispose()
             messagebox.showerror("无法开始采集", str(error), parent=self.root)
             return
 
@@ -233,7 +250,10 @@ class LycheeMonitor:
         self.start_button.configure(state="disabled")
         self.stop_button.configure(state="normal")
         self.simulator_button.configure(state="disabled")
-        self.status.set(f"正在采集 {serial} · {info.num_channels} 通道 · {info.sample_rate_hz:.0f} Hz")
+        self.status.set(
+            f"正在采集 {serial} · {eeg_stream.num_channels} 通道 · "
+            f"{eeg_stream.sample_rate_hz:.0f} Hz"
+        )
 
     def stop_session(self):
         session = self.session

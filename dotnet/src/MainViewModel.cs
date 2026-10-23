@@ -219,46 +219,50 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            var info = _axon.DeviceInfo(serial);
-            var session = _axon.NewSession(serial);
+            var stream = CollectionSessionStartup.SelectUniformEeg(_axon.DeviceStreams(serial));
+            var session = CollectionSessionStartup.CreateConfigured(
+                () => _axon.NewSession(serial, stream.Id),
+                session =>
+                {
+                    if (_args.NoFilter) return;
 
-            if (!_args.NoFilter)
-            {
-                // Same default as the native debugger: a single IIR band-pass
-                // section at 0.4–70 Hz. The FFI requires an explicit Q (0 is
-                // rejected), so pass the value the native side auto-derives:
-                // q = f0 / bandwidth.
-                const double bpLow = 0.4, bpHigh = 70.0;
-                var bpQ = Math.Sqrt(bpLow * bpHigh) / (bpHigh - bpLow);
-                session.AddFilter(new FilterStageConfig(
-                    FilterType: FilterType.Iir,
-                    Kind: FilterKind.BandPass,
-                    CutoffHz: bpLow,
-                    Cutoff2Hz: bpHigh,
-                    Order: 1,
-                    Q: bpQ,
-                    SampleRateHz: info.SampleRateHz));
-
-                if (_args.Notch)
+                    // Same default as the native debugger: a single IIR band-pass
+                    // section at 0.4–70 Hz. Use the same Q as the native debugger:
+                    // q = f0 / bandwidth.
+                    const double bpLow = 0.4, bpHigh = 70.0;
+                    var bpQ = Math.Sqrt(bpLow * bpHigh) / (bpHigh - bpLow);
                     session.AddFilter(new FilterStageConfig(
                         FilterType: FilterType.Iir,
-                        Kind: FilterKind.Notch,
-                        CutoffHz: 50.0,
-                        Cutoff2Hz: 0.0,
-                        Order: 4,
-                        Q: 30.0,
-                        SampleRateHz: info.SampleRateHz));
-            }
+                        Kind: FilterKind.BandPass,
+                        CutoffHz: bpLow,
+                        Cutoff2Hz: bpHigh,
+                        Order: 1,
+                        Q: bpQ));
+
+                    if (_args.Notch)
+                        session.AddFilter(new FilterStageConfig(
+                            FilterType: FilterType.Iir,
+                            Kind: FilterKind.Notch,
+                            CutoffHz: 50.0,
+                            Cutoff2Hz: 0.0,
+                            Order: 4,
+                            Q: 30.0));
+                });
 
             _session = session;
             _buffer.Clear();
             IsCollecting = true;
             StatusText = _args.NoFilter
-                ? $"Collecting {serial} · {info.NumChannels} ch · {info.SampleRateHz:F0} Hz · unfiltered"
-                : $"Collecting {serial} · {info.NumChannels} ch · {info.SampleRateHz:F0} Hz · BP 0.4–70 Hz"
+                ? $"Collecting {serial} · {stream.NumChannels} ch · {stream.SampleRateHz:F0} Hz · unfiltered"
+                : $"Collecting {serial} · {stream.NumChannels} ch · {stream.SampleRateHz:F0} Hz · BP 0.4–70 Hz"
                   + (_args.Notch ? " + notch 50 Hz" : "");
         }
         catch (AxonException ex)
+        {
+            _showDialog?.Invoke(ex.Message, "Failed to start collection",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        catch (InvalidOperationException ex)
         {
             _showDialog?.Invoke(ex.Message, "Failed to start collection",
                 MessageBoxButton.OK, MessageBoxImage.Error);
