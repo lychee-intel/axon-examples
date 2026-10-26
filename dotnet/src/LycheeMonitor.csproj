@@ -6,6 +6,8 @@
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AxonProjectPath Condition="'$(AxonProjectPath)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\axon\bindings\dotnet\Axon\Axon.csproj')">$(MSBuildThisFileDirectory)..\..\..\axon\bindings\dotnet\Axon\Axon.csproj</AxonProjectPath>
+    <AxonNativeDllPath Condition="'$(AxonNativeDllPath)' == '' and '$(AxonProjectPath)' != ''">$(MSBuildThisFileDirectory)..\..\..\axon\target\$([System.String]::Copy('$(Configuration)').ToLowerInvariant())\axon.dll</AxonNativeDllPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,6 +15,10 @@
     <ProjectReference Include="$(AxonProjectPath)" Condition="'$(AxonProjectPath)' != ''" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
     <PackageReference Include="ScottPlot.WPF" Version="5.*" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(AxonProjectPath)' != '' and Exists('$(AxonNativeDllPath)')">
+    <Content Include="$(AxonNativeDllPath)" Link="axon.dll" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

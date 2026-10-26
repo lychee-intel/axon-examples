@@ -18,9 +18,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly Axon.Axon _axon;
     private readonly WaveformBuffer _buffer;
     private readonly ConcurrentQueue<DeviceEventArgs> _deviceEvents = new();
+    private readonly ConcurrentQueue<SampleBlock> _dataBlocks = new();
     private readonly Dictionary<string, string> _deviceMap = new();
     private readonly DispatcherTimer _timer;
     private AxonSession? _session;
+    private CancellationTokenSource? _dataReaderCancellation;
+    private Task? _dataReaderTask;
     private Simulator? _simulator;
     private bool _disposed;
 
@@ -80,7 +83,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _buffer = new WaveformBuffer(args.WindowSeconds);
 
         Axon.Axon.LogInit(args.LogLevel);
-        _axon.SetDeviceCallback(ev => _deviceEvents.Enqueue(ev));
+        _axon.DeviceChanged += OnDeviceChanged;
         StartListener();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
@@ -115,6 +118,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
+
+    private void OnDeviceChanged(DeviceEventArgs deviceEvent) => _deviceEvents.Enqueue(deviceEvent);
 
     // ── Simulator management ────────────────────────────────────────────────
 
@@ -151,18 +156,15 @@ public partial class MainViewModel : ObservableObject, IDisposable
             else RemoveDevice(ev.Serial);
         }
 
-        // Drain data queue
-        if (_session is { } session)
+        // Drain blocks delivered by the session's async stream.
+        for (var i = 0; i < 64; i++)
         {
-            for (var i = 0; i < 64; i++)
-            {
-                if (!session.Data.TryRead(out var block)) break;
-                _buffer.Append(
-                    (int)block.NumChannels,
-                    (int)block.NumSamples,
-                    block.SampleRateHz,
-                    block.Data);
-            }
+            if (!_dataBlocks.TryDequeue(out var block)) break;
+            _buffer.Append(
+                (int)block.NumChannels,
+                (int)block.NumSamples,
+                block.SampleRateHz,
+                block.Data);
         }
 
         if (RenderChart())
@@ -219,9 +221,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            var stream = CollectionSessionStartup.SelectUniformEeg(_axon.DeviceStreams(serial));
+            var device = _axon.GetDevice(serial);
+            var stream = CollectionSessionStartup.SelectUniformEeg(device.Streams);
             var session = CollectionSessionStartup.CreateConfigured(
-                () => _axon.NewSession(serial, stream.Id),
+                () => device.OpenSession(stream.Id),
                 session =>
                 {
                     if (_args.NoFilter) return;
@@ -250,6 +253,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
                 });
 
             _session = session;
+            _dataBlocks.Clear();
+            _dataReaderCancellation = new CancellationTokenSource();
+            _dataReaderTask = ReadSessionDataAsync(session, _dataReaderCancellation.Token);
             _buffer.Clear();
             IsCollecting = true;
             StatusText = _args.NoFilter
@@ -271,18 +277,41 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private bool CanStartCollection() => !IsCollecting && SelectedDevice is not null;
 
+    private async Task ReadSessionDataAsync(AxonSession session, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var block in session.Data
+                .WithCancellation(cancellationToken)
+                .ConfigureAwait(false))
+                _dataBlocks.Enqueue(block);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Collection stopped while the stream was waiting for its next block.
+        }
+    }
+
+    private void StopSessionData()
+    {
+        _dataReaderCancellation?.Cancel();
+        try { _session?.Dispose(); }
+        catch { /* best-effort */ }
+        try { _dataReaderTask?.GetAwaiter().GetResult(); }
+        catch { /* best-effort */ }
+        _dataReaderCancellation?.Dispose();
+        _dataReaderCancellation = null;
+        _dataReaderTask = null;
+        _session = null;
+        _dataBlocks.Clear();
+    }
+
     // ── Stop collection ──────────────────────────────────────────────────────
 
     [RelayCommand(CanExecute = nameof(CanStopCollection))]
     private void StopCollection()
     {
-        try
-        {
-            _session?.Dispose();
-        }
-        catch { /* best-effort */ }
-
-        _session = null;
+        StopSessionData();
         _buffer.Clear();
         IsCollecting = false;
         StatusText = SelectedDevice is not null
@@ -468,9 +497,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (_disposed) return;
         _disposed = true;
         _timer.Stop();
+        _axon.DeviceChanged -= OnDeviceChanged;
 
-        try { _session?.Dispose(); }
-        catch { /* best-effort */ }
+        StopSessionData();
 
         try
         {

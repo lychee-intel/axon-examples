@@ -16,7 +16,13 @@ WPF desktop application that displays real-time EEG waveforms from a Lychee devi
 
 - .NET 8.0+ SDK
 
-The example targets the Axon C# binding and C ABI 0.2. Its NuGet package includes the matching native `axon.dll`. The local feed pins `Axon` to `packages/` and keeps the global package cache under `../target/dotnet-nuget-cache-abi020`.
+The example targets the Axon C# binding and C ABI 0.2. Its NuGet package includes the matching native `axon.dll`. When the `axon` and `axon-examples` repositories share a parent directory, the project defaults to the binding source at `axon/bindings/dotnet/Axon`; standalone checkouts use the local NuGet feed, which pins `Axon` to `packages/` and keeps the global package cache under `../target/dotnet-nuget-cache-abi020`.
+
+In local source mode, build the native library for the selected configuration in the `axon` repository before running. The example copies that library beside the app so it cannot accidentally load another system `axon.dll`.
+
+```powershell
+cargo build -p axon-ffi
+```
 
 From this directory, rebuild the package from the sibling `axon` checkout on Windows PowerShell:
 

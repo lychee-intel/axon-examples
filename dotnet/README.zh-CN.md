@@ -15,6 +15,14 @@
 本示例使用匹配的 Axon 0.2.0 binding 和原生 DLL，并显式选择均匀采样 EEG 流。
 在本目录执行以下命令重新打包、恢复依赖：
 
+当 `axon` 与 `axon-examples` 仓库位于同一父目录时，项目会默认引用 `axon/bindings/dotnet/Axon` 源码；独立检出时使用下方打包的 NuGet 包。
+
+本地源码模式运行前，先在 `axon` 仓库根目录构建对应配置的原生库；示例构建时会将其复制到应用输出目录，避免误加载系统中其他版本的 `axon.dll`。
+
+```powershell
+cargo build -p axon-ffi
+```
+
 ```powershell
 $axon = (Resolve-Path ..\..\axon).Path
 cargo build --manifest-path "$axon\Cargo.toml" -p axon-ffi --release
