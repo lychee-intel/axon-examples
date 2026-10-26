@@ -58,7 +58,7 @@ dotnet run --project src -- --help
 | `--window SECONDS`  | Waveform display window (default 10.0)               |
 | `--no-filter`       | Disable the 0.4–70 Hz bandpass filter                |
 | `--notch`           | Add a 50 Hz notch (Q=30), useful with real hardware  |
-| `--log-level LEVEL` | Rust log level: off, error, warn, info, debug, trace |
+| `--log-level LEVEL` | Minimum log severity: trace, debug, information, warning, error, critical, none (default) |
 
 ## Building
 

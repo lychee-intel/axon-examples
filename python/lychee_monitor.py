@@ -22,10 +22,11 @@ from axon import (
 
 SIM_SERIAL = "0A1B2C"
 LOG_LEVELS = {
-    "off": LogLevel.OFF,
+    "none": LogLevel.NONE,
+    "critical": LogLevel.CRITICAL,
     "error": LogLevel.ERROR,
-    "warn": LogLevel.WARN,
-    "info": LogLevel.INFO,
+    "warning": LogLevel.WARNING,
+    "information": LogLevel.INFORMATION,
     "debug": LogLevel.DEBUG,
     "trace": LogLevel.TRACE,
 }
@@ -325,7 +326,7 @@ def parse_args(argv=None):
     parser.add_argument("--window", type=float, default=10.0, help="波形显示时窗（秒）")
     parser.add_argument("--no-filter", action="store_true", help="禁用 0.4–70 Hz 带通滤波")
     parser.add_argument("--notch", action="store_true", help="叠加 50 Hz 陷波（Q=30，接硬件时使用）")
-    parser.add_argument("--log-level", choices=LOG_LEVELS, default="off", help="Rust 日志级别")
+    parser.add_argument("--log-level", choices=LOG_LEVELS, default="none", help="最低原生日志严重等级")
     args = parser.parse_args(argv)
     if args.window <= 0:
         parser.error("--window 必须大于 0")

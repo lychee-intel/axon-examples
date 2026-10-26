@@ -30,7 +30,7 @@ internal static class Program
         var window = 10.0;
         var noFilter = false;
         var notch = false;
-        var logLevel = "off";
+        var logLevel = "none";
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -65,17 +65,18 @@ internal static class Program
 
         var level = logLevel switch
         {
-            "off" => LogLevel.Off,
+            "none" => LogLevel.None,
+            "critical" => LogLevel.Critical,
             "error" => LogLevel.Error,
-            "warn" => LogLevel.Warn,
-            "info" => LogLevel.Info,
+            "warning" => LogLevel.Warning,
+            "information" => LogLevel.Information,
             "debug" => LogLevel.Debug,
             "trace" => LogLevel.Trace,
             _ => (LogLevel?)null,
         };
 
         if (level is null)
-            return Error($"Invalid log level: {logLevel} (valid: off, error, warn, info, debug, trace)");
+            return Error($"Invalid log level: {logLevel} (valid: trace, debug, information, warning, error, critical, none)");
 
         return new CommandLineArgs(serial, window, noFilter, notch, level.Value);
     }
@@ -100,7 +101,7 @@ internal static class Program
               --window SECONDS      Waveform display window (default 10.0)
               --no-filter           Disable the 0.4–70 Hz bandpass filter
               --notch               Add a 50 Hz notch (Q=30) for real hardware
-              --log-level LEVEL     Rust log level (off|error|warn|info|debug|trace)
+              --log-level LEVEL     Minimum log severity (trace|debug|information|warning|error|critical|none)
               -h, --help            Show this help message
             """);
     }

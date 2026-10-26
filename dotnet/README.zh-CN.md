@@ -67,7 +67,7 @@ dotnet run --project src -- --help
 | `--window SECONDS` | 波形显示时窗（默认 10.0 秒） |
 | `--no-filter` | 禁用 0.4–70 Hz 带通滤波器 |
 | `--notch` | 叠加 50 Hz 陷波（Q=30），接硬件时使用 |
-| `--log-level LEVEL` | Rust 日志级别：off, error, warn, info, debug, trace |
+| `--log-level LEVEL` | 最低日志严重等级：trace, debug, information, warning, error, critical, none（默认） |
 
 ## 构建
 
