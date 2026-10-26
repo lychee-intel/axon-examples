@@ -40,7 +40,7 @@ class AxonDemoScreen extends StatefulWidget {
 class _AxonDemoScreenState extends State<AxonDemoScreen> {
   late final Axon _axon;
   AxonSession? _session;
-  AxonLycheeSimulator? _simulator;
+  AxonSimulator? _simulator;
   StreamSubscription<SampleBlock>? _dataSub;
   bool _running = false;
   _DataSource _dataSource = _DataSource.simulator;
@@ -63,8 +63,8 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
       final serial = switch (_dataSource) {
         _DataSource.simulator => () {
             _axon.start();
-            final simulator = _axon.startLycheeSimulator(
-              sensorType: LycheeSensorType.pfc,
+            final simulator = _axon.startSimulator(
+              model: DeviceModel.lycheePfc,
               serial: '0A1B2C',
             );
             _simulator = simulator;

@@ -123,7 +123,7 @@ class TestMonitorConfiguration(unittest.TestCase):
         monitor.start_button = _FakeWidget()
         monitor.stop_button = _FakeWidget()
         monitor.simulator_button = _FakeWidget()
-        monitor._simulator_id = None
+        monitor._simulator = None
         monitor.status = _FakeVariable()
         monitor._selected_serial = lambda: "SIM-1"
         monitor.created_session = session
@@ -183,7 +183,7 @@ class TestMonitorConfiguration(unittest.TestCase):
         monitor.start_button = _FakeWidget()
         monitor.stop_button = _FakeWidget()
         monitor.simulator_button = _FakeWidget()
-        monitor._simulator_id = None
+        monitor._simulator = None
         monitor.status = _FakeVariable()
 
         monitor.stop_session()

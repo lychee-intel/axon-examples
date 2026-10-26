@@ -21,7 +21,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly Dictionary<string, string> _deviceMap = new();
     private readonly DispatcherTimer _timer;
     private AxonSession? _session;
-    private uint? _simulatorId;
+    private Simulator? _simulator;
     private bool _disposed;
 
     // ── Dialog service (injected by View) ────────────────────────────────────
@@ -123,7 +123,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            _simulatorId = _axon.AddLycheeSimulator(SimSerial, numChannels: 3, sampleRateHz: 250.0);
+            _simulator = _axon.AddSimulator(DeviceModel.LycheePfc, SimSerial);
             StatusText = "Lychee simulator added, select lychee-sim to start";
         }
         catch (AxonException ex)
@@ -138,7 +138,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     }
 
     private bool CanAddSimulator()
-        => SimulatorControlState.CanAddSimulator(AxonStarted, _simulatorId.HasValue, IsCollecting);
+        => SimulatorControlState.CanAddSimulator(AxonStarted, _simulator is not null, IsCollecting);
 
     // ── Timer tick ───────────────────────────────────────────────────────────
 
@@ -474,8 +474,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            if (_simulatorId is { } simulatorId)
-                _axon.StopLycheeSimulator(simulatorId);
+            if (_simulator is { } simulator)
+                simulator.Stop();
         }
         catch { /* best-effort */ }
 

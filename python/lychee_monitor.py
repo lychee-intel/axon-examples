@@ -16,7 +16,7 @@ from axon import (
     FilterKind,
     FilterType,
     LogLevel,
-    LycheeSensorType,
+    DeviceModel,
     SampleBlock,
 )
 
@@ -89,7 +89,7 @@ class LycheeMonitor:
         self.axon = Axon()
         self.session = None
         self._axon_started = False
-        self._simulator_id = None
+        self._simulator = None
         self.device_events = Queue()
         self.devices = {}
         self.buffer = WaveformBuffer(args.window)
@@ -148,11 +148,11 @@ class LycheeMonitor:
             messagebox.showerror("Lychee 监听失败", str(error), parent=self.root)
 
     def add_simulator(self):
-        if not can_add_simulator(self._axon_started, self._simulator_id is not None, self.session is not None):
+        if not can_add_simulator(self._axon_started, self._simulator is not None, self.session is not None):
             return
         try:
-            self._simulator_id = self.axon.start_lychee_simulator(
-                LycheeSensorType.PFC, SIM_SERIAL
+            self._simulator = self.axon.start_simulator(
+                DeviceModel.LYCHEE_PFC, SIM_SERIAL
             )
             self.simulator_button.configure(state="disabled")
             self.status.set("模拟器已添加，正在等待设备出现在列表中…")
@@ -268,7 +268,7 @@ class LycheeMonitor:
             self.start_button.configure(state="normal")
             self.stop_button.configure(state="disabled")
             self.simulator_button.configure(
-                state="disabled" if self._simulator_id is not None else "normal"
+                state="disabled" if self._simulator is not None else "normal"
             )
             self.status.set("采集已停止，可重新开始")
 
@@ -313,8 +313,8 @@ class LycheeMonitor:
     def close(self):
         try:
             self.stop_session()
-            if self._simulator_id is not None:
-                self.axon.stop_lychee_simulator(self._simulator_id)
+            if self._simulator is not None:
+                self._simulator.stop()
             self.axon.dispose()
         finally:
             self.root.destroy()
