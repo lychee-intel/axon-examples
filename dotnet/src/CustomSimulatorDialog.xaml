@@ -1,0 +1,46 @@
+<Window x:Class="LycheeMonitor.CustomSimulatorDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add custom simulator"
+        Width="390" Height="330"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#10151b"
+        Foreground="White">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock Text="Configure a custom device" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,12">
+            <TextBlock Text="Serial (6 hexadecimal characters)" Foreground="#93cdb1" Margin="0,0,0,5"/>
+            <TextBox x:Name="SerialBox" Text="020304" Padding="7,5" MaxLength="6"
+                     Background="#1a2230" Foreground="White" BorderBrush="#2b6245"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,12">
+            <TextBlock Text="EEG channels (0–64, 0 disables EEG)" Foreground="#93cdb1" Margin="0,0,0,5"/>
+            <TextBox x:Name="EegChannelsBox" Text="8" Padding="7,5"
+                     Background="#1a2230" Foreground="White" BorderBrush="#2b6245"/>
+        </StackPanel>
+
+        <CheckBox x:Name="NirsCheckBox" Grid.Row="3" Content="Enable NIRS (2 channels, 20 Hz)"
+                  Foreground="White" IsChecked="True" Margin="0,0,0,8"/>
+
+        <TextBlock x:Name="ErrorText" Grid.Row="4" Foreground="#ff8c8c"
+                   TextWrapping="Wrap" VerticalAlignment="Top"/>
+
+        <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" Width="84" Height="30" Margin="0,0,8,0" IsCancel="True"/>
+            <Button Content="Add" Width="84" Height="30" IsDefault="True"
+                    Background="#256d4a" Foreground="White" BorderThickness="0"
+                    Click="Add_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -110,6 +110,11 @@
                     Margin="8,0,8,0"
                     Command="{Binding AddSimulatorCommand}"
                     Style="{StaticResource GreenButton}"/>
+            <Button Content="Add custom simulator"
+                    Width="145" Height="28"
+                    Margin="0,0,8,0"
+                    Command="{Binding AddCustomSimulatorCommand}"
+                    Style="{StaticResource GreenButton}"/>
             <Button Content="Start"
                     Width="90" Height="28"
                     Margin="8,0,8,0"

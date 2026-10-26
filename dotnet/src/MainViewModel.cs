@@ -30,6 +30,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     // ── Dialog service (injected by View) ────────────────────────────────────
 
     private readonly Func<string, string, MessageBoxButton, MessageBoxImage, MessageBoxResult>? _showDialog;
+    private readonly Func<CustomSimulatorRequest?>? _showCustomSimulatorDialog;
 
     // ── Observable properties ────────────────────────────────────────────────
 
@@ -47,10 +48,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(StartCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(StopCollectionCommand))]
     [NotifyCanExecuteChangedFor(nameof(AddSimulatorCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddCustomSimulatorCommand))]
     private bool _isCollecting;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(AddSimulatorCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddCustomSimulatorCommand))]
     private bool _axonStarted;
 
     // ── Chart ────────────────────────────────────────────────────────────────
@@ -69,10 +72,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public MainViewModel(
         CommandLineArgs args,
         Plot plot,
-        Func<string, string, MessageBoxButton, MessageBoxImage, MessageBoxResult>? showDialog = null)
+        Func<string, string, MessageBoxButton, MessageBoxImage, MessageBoxResult>? showDialog = null,
+        Func<CustomSimulatorRequest?>? showCustomSimulatorDialog = null)
     {
         _args = args;
         _showDialog = showDialog;
+        _showCustomSimulatorDialog = showCustomSimulatorDialog;
         Plot = plot;
 
         FooterText = $"Last {args.WindowSeconds:F1}s  ·  Grid 0.5s  ·  Auto-scale";
@@ -138,6 +143,38 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
+            AddSimulatorCommand.NotifyCanExecuteChanged();
+            AddCustomSimulatorCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanAddSimulator))]
+    private void AddCustomSimulator()
+    {
+        var request = _showCustomSimulatorDialog?.Invoke();
+        if (request is null) return;
+
+        try
+        {
+            _simulator = _axon.AddSimulator(
+                DeviceModel.Custom,
+                request.Serial,
+                new CustomSimulatorOptions(
+                    EegChannels: request.EegChannels == 0 ? null : request.EegChannels,
+                    NirsEnabled: request.NirsEnabled));
+            var streams = request.EegChannels > 0 && request.NirsEnabled
+                ? "EEG + NIRS"
+                : request.EegChannels > 0 ? "EEG" : "NIRS";
+            StatusText = $"Custom simulator added ({streams}), select {request.Serial} to start";
+        }
+        catch (AxonException ex)
+        {
+            _showDialog?.Invoke(ex.Message, "Failed to add custom simulator",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            AddCustomSimulatorCommand.NotifyCanExecuteChanged();
             AddSimulatorCommand.NotifyCanExecuteChanged();
         }
     }

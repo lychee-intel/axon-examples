@@ -8,6 +8,7 @@ WPF desktop application that displays real-time EEG waveforms from a Lychee devi
 
 - **Device discovery** — auto-detects Lychee EEG hardware on the LAN
 - **Simulator** — click **Add simulator** after Axon starts to create a virtual 3-channel, 250 Hz device
+- **Custom simulator** — configure a serial, 0–64 EEG channels, and optional 2-channel NIRS stream with **Add custom simulator**
 - **Real-time waveforms** — scrolling multi-channel EEG display with auto-scaling
 - **0.4–70 Hz bandpass filter** — single-section IIR filter applied by default, matching the native debugger (`--no-filter` to disable, `--notch` to add a 50 Hz notch)
 - **Dark theme** — matches the Python example's visual style
