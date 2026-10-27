@@ -11,9 +11,9 @@
 - **0.4–70 Hz 带通滤波** — 默认启用 IIR 单节滤波器，与原生调试器一致（`--no-filter` 可禁用，`--notch` 叠加 50 Hz 陷波）
 - **暗色主题** — 与 Python 示例一致的视觉风格
 
-## ABI 0.2 升级
+## ABI 0.4 升级
 
-本示例使用匹配的 Axon 0.2.0 binding 和原生 DLL，并显式选择均匀采样 EEG 流。
+本示例使用匹配的 Axon 0.4.0 binding 和原生 DLL，并显式选择均匀采样 EEG 流。
 在本目录执行以下命令重新打包、恢复依赖：
 
 当 `axon` 与 `axon-examples` 仓库位于同一父目录时，项目会默认引用 `axon/bindings/dotnet/Axon` 源码；独立检出时使用下方打包的 NuGet 包。
@@ -27,7 +27,7 @@ cargo build -p axon-ffi
 ```powershell
 $axon = (Resolve-Path ..\..\axon).Path
 cargo build --manifest-path "$axon\Cargo.toml" -p axon-ffi --release
-$stage = Join-Path $PWD '..\target\axon-package-abi020'
+$stage = Join-Path $PWD '..\target\axon-package-abi040'
 $native = Join-Path $stage 'win-x64\native'
 New-Item -ItemType Directory -Force $native | Out-Null
 Copy-Item "$axon\target\release\axon.dll" (Join-Path $native 'axon.dll') -Force
@@ -36,7 +36,7 @@ dotnet restore src --force --no-http-cache
 dotnet restore tests --force --no-http-cache
 ```
 
-同版本替换包时，先移除 `../target/dotnet-nuget-cache-abi020/axon/0.2.0` 缓存目录，再执行恢复。
+同版本替换包时，先移除 `../target/dotnet-nuget-cache-abi040/axon/0.4.0` 缓存目录，再执行恢复。
 
 ## 环境要求
 
@@ -92,7 +92,7 @@ dotnet/
 ├── LycheeMonitor.sln
 ├── nuget.config                   # 本地 NuGet 源，指向 packages/
 ├── packages/
-│   └── Axon.0.2.0.nupkg          # Axon 绑定 NuGet 包（含原生库）
+│   └── Axon.0.4.0.nupkg          # Axon 绑定 NuGet 包（含原生库）
 ├── src/
 │   ├── LycheeMonitor.csproj       # WPF 应用 (net8.0-windows)
 │   ├── Program.cs                 # 入口 + 命令行解析

@@ -17,7 +17,7 @@ WPF desktop application that displays real-time EEG waveforms from a Lychee devi
 
 - .NET 8.0+ SDK
 
-The example targets the Axon C# binding and C ABI 0.2. Its NuGet package includes the matching native `axon.dll`. When the `axon` and `axon-examples` repositories share a parent directory, the project defaults to the binding source at `axon/bindings/dotnet/Axon`; standalone checkouts use the local NuGet feed, which pins `Axon` to `packages/` and keeps the global package cache under `../target/dotnet-nuget-cache-abi020`.
+The example targets the Axon C# binding and C ABI 0.4. Its NuGet package includes the matching native `axon.dll`. When the `axon` and `axon-examples` repositories share a parent directory, the project defaults to the binding source at `axon/bindings/dotnet/Axon`; standalone checkouts use the local NuGet feed, which pins `Axon` to `packages/` and keeps the global package cache under `../target/dotnet-nuget-cache-abi040`.
 
 In local source mode, build the native library for the selected configuration in the `axon` repository before running. The example copies that library beside the app so it cannot accidentally load another system `axon.dll`.
 
@@ -30,7 +30,7 @@ From this directory, rebuild the package from the sibling `axon` checkout on Win
 ```powershell
 $axon = (Resolve-Path ..\..\axon).Path
 cargo build --manifest-path "$axon\Cargo.toml" -p axon-ffi --release
-$stage = Join-Path $PWD '..\target\axon-package-abi020'
+$stage = Join-Path $PWD '..\target\axon-package-abi040'
 $native = Join-Path $stage 'win-x64\native'
 New-Item -ItemType Directory -Force $native | Out-Null
 Copy-Item "$axon\target\release\axon.dll" (Join-Path $native 'axon.dll') -Force
@@ -39,7 +39,7 @@ dotnet restore src --force --no-http-cache
 dotnet restore tests --force --no-http-cache
 ```
 
-The sample selects a uniformly sampled EEG stream explicitly. When replacing an existing package with the same version, remove only `../target/dotnet-nuget-cache-abi020/axon/0.2.0` before restoring so NuGet reads the new local package.
+The sample selects a uniformly sampled EEG stream explicitly. When replacing an existing package with the same version, remove only `../target/dotnet-nuget-cache-abi040/axon/0.4.0` before restoring so NuGet reads the new local package.
 
 ## Running
 
@@ -81,7 +81,7 @@ dotnet/
 ├── LycheeMonitor.sln
 ├── nuget.config                   # Local NuGet feed pointing to packages/
 ├── packages/
-│   └── Axon.0.2.0.nupkg          # Axon binding NuGet package (with native lib)
+│   └── Axon.0.4.0.nupkg          # Axon binding NuGet package (with native lib)
 ├── src/
 │   ├── LycheeMonitor.csproj       # WPF app (net8.0-windows)
 │   ├── Program.cs                 # Entry point + CLI arg parsing

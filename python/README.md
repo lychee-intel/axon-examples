@@ -4,17 +4,17 @@
 
 ## 环境准备
 
-先安装 ABI 0.2.0 的 Axon Python wheel，并选择与你的系统和 CPU 架构匹配的文件。旧版 ABI 不兼容：
+先安装 ABI 0.4.0 的 Axon Python wheel，并选择与你的系统和 CPU 架构匹配的文件。旧版 ABI 不兼容：
 
 推荐使用 `uv` 管理 Python 环境。
 
 ```shell
 cd axon-examples\python
 uv venv
-uv pip install --reinstall path/to/your/wheel/axon-0.2.0-py3-none-win_amd64.whl
+uv pip install --reinstall path/to/your/wheel/axon-0.4.0-py3-none-win_amd64.whl
 ```
 
-上面的文件名以 Windows x64 为例；macOS 和 Linux 请使用对应平台的 ABI 0.2.0 wheel。
+上面的文件名以 Windows x64 为例；macOS 和 Linux 请使用对应平台的 ABI 0.4.0 wheel。
 
 ## lychee_monitor.py — Lychee EEG 实时波形监测
 

@@ -6,11 +6,7 @@ import 'package:flutter/material.dart';
 /// 实时频谱画布：订阅 [stream] 的 SpectrumBlock，把 [channel] 通道的 bins
 /// 画成柱状图，X 轴为频率（Hz）、Y 轴为振幅/功率密度。
 class SpectrumCanvas extends StatefulWidget {
-  const SpectrumCanvas({
-    super.key,
-    required this.stream,
-    this.channel = 0,
-  });
+  const SpectrumCanvas({super.key, required this.stream, this.channel = 0});
 
   final Stream<SpectrumBlock> stream;
   final int channel;
@@ -35,11 +31,11 @@ class _SpectrumCanvasState extends State<SpectrumCanvas> {
   }
 
   void _onBlock(SpectrumBlock block) {
-    final ch = widget.channel.clamp(0, block.numChannels - 1);
+    if (block.channelIndex != widget.channel) return;
     final nb = block.numBins;
     var max = 0.0;
     for (var k = 0; k < nb; k++) {
-      final v = block.bins[ch * nb + k];
+      final v = block.bins[k];
       if (v > max) max = v;
     }
     _last = block;
@@ -108,7 +104,7 @@ class _SpectrumPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final b = block;
-    if (b == null) return;
+    if (b == null || b.channelIndex != channel) return;
 
     const leftPad = 8.0;
     const bottomPad = 18.0;
@@ -118,12 +114,11 @@ class _SpectrumPainter extends CustomPainter {
     if (plotW <= 0 || plotH <= 0) return;
 
     final nb = b.numBins;
-    final ch = channel.clamp(0, b.numChannels - 1); // 通道主序首 bin 下标
     final barW = plotW / nb;
 
     final paint = Paint()..color = barColor;
     for (var k = 0; k < nb; k++) {
-      final v = b.bins[ch * nb + k];
+      final v = b.bins[k];
       final h = (v / maxY).clamp(0.0, 1.0) * plotH;
       final x = leftPad + k * barW;
       canvas.drawRect(
@@ -150,7 +145,10 @@ class _SpectrumPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    mid.paint(canvas, Offset(leftPad + plotW / 2 - mid.width / 2, topPad + plotH + 2));
+    mid.paint(
+      canvas,
+      Offset(leftPad + plotW / 2 - mid.width / 2, topPad + plotH + 2),
+    );
 
     final nyqT = TextPainter(
       text: TextSpan(
@@ -159,7 +157,10 @@ class _SpectrumPainter extends CustomPainter {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    nyqT.paint(canvas, Offset(leftPad + plotW - nyqT.width, topPad + plotH + 2));
+    nyqT.paint(
+      canvas,
+      Offset(leftPad + plotW - nyqT.width, topPad + plotH + 2),
+    );
   }
 
   @override
