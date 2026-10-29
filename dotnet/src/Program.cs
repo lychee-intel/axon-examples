@@ -1,5 +1,6 @@
 using System.Windows;
 using Axon;
+using Axon.Diagnostics;
 
 namespace LycheeMonitor;
 

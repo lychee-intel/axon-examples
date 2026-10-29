@@ -1,20 +1,27 @@
 using Xunit;
-using Axon;
-using Axon.Native;
+using Axon.Data;
+using Axon.Devices;
+
 
 namespace LycheeMonitor.Tests;
 
 public class WaveformBufferTests
 {
+    private static DeviceStreamInfo StreamInfo(string id, string displayName, StreamKind kind,
+        StreamAvailability availability, double sampleRate, int channels, SamplingMode mode = SamplingMode.Uniform)
+        => (DeviceStreamInfo)Activator.CreateInstance(typeof(DeviceStreamInfo),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+            null, new object[] { id, displayName, kind, availability, sampleRate, channels, mode }, null)!;
+
     [Fact]
     public void SelectUniformEeg_IgnoresIrregularEegAndOtherUniformStreams()
     {
         var streams = new[]
         {
-            new DeviceStreamInfo("irregular", "Irregular EEG", (uint)AxonStreamKind.Eeg, 0, 250, 3,
-                AxonSamplingMode.Irregular),
-            new DeviceStreamInfo("motion", "Motion", (uint)AxonStreamKind.Motion, 0, 50, 6),
-            new DeviceStreamInfo("eeg", "EEG", (uint)AxonStreamKind.Eeg, 0, 250, 3),
+            StreamInfo("irregular", "Irregular EEG", StreamKind.Eeg, StreamAvailability.Active, 250, 3,
+                SamplingMode.Irregular),
+            StreamInfo("motion", "Motion", StreamKind.Motion, StreamAvailability.Active, 50, 6),
+            StreamInfo("eeg", "EEG", StreamKind.Eeg, StreamAvailability.Active, 250, 3),
         };
 
         Assert.Equal("eeg", CollectionSessionStartup.SelectUniformEeg(streams).Id);

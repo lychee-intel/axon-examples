@@ -13,7 +13,7 @@
 
 ## ABI 0.4 升级
 
-本示例使用匹配的 Axon 0.4.0 binding 和原生 DLL，并显式选择均匀采样 EEG 流。
+本示例使用匹配的 Axon 0.6.0 binding 和原生 DLL，并显式选择均匀采样 EEG 流。
 在本目录执行以下命令重新打包、恢复依赖：
 
 当 `axon` 与 `axon-examples` 仓库位于同一父目录时，项目会默认引用 `axon/bindings/dotnet/Axon` 源码；独立检出时使用下方打包的 NuGet 包。
@@ -36,7 +36,7 @@ dotnet restore src --force --no-http-cache
 dotnet restore tests --force --no-http-cache
 ```
 
-同版本替换包时，先移除 `../target/dotnet-nuget-cache-abi040/axon/0.4.0` 缓存目录，再执行恢复。
+同版本替换包时，先移除 `../target/dotnet-nuget-cache-abi040/axon/0.6.0` 缓存目录，再执行恢复。
 
 ## 环境要求
 
@@ -92,7 +92,7 @@ dotnet/
 ├── LycheeMonitor.sln
 ├── nuget.config                   # 本地 NuGet 源，指向 packages/
 ├── packages/
-│   └── Axon.0.4.0.nupkg          # Axon 绑定 NuGet 包（含原生库）
+│   └── Axon.0.6.0.nupkg          # Axon 绑定 NuGet 包（含原生库）
 ├── src/
 │   ├── LycheeMonitor.csproj       # WPF 应用 (net8.0-windows)
 │   ├── Program.cs                 # 入口 + 命令行解析
@@ -103,3 +103,5 @@ dotnet/
     ├── WaveformBufferTests.csproj
     └── WaveformBufferTests.cs     # WaveformBuffer 单元测试
 ```
+
+ABI 0.6: collection opens one device Session, selects a uniform EEG stream, creates an explicit processing pipeline, then subscribes to its output. Session disposal closes the subscription and pipeline.

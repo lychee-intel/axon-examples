@@ -1,5 +1,6 @@
-using Axon;
-using Axon.Native;
+using Axon.Data;
+using Axon.Devices;
+
 
 namespace LycheeMonitor;
 
@@ -8,8 +9,8 @@ internal static class CollectionSessionStartup
     internal static DeviceStreamInfo SelectUniformEeg(IEnumerable<DeviceStreamInfo> streams)
     {
         return streams.FirstOrDefault(stream =>
-            stream.Kind == (uint)AxonStreamKind.Eeg &&
-            stream.SamplingMode == AxonSamplingMode.Uniform)
+            stream.Kind == StreamKind.Eeg &&
+            stream.SamplingMode == SamplingMode.Uniform)
             ?? throw new InvalidOperationException("Device has no uniformly sampled EEG stream.");
     }
 

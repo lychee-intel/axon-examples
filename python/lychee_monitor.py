@@ -89,6 +89,8 @@ class LycheeMonitor:
         self.args = args
         self.axon = Axon()
         self.session = None
+        self.pipeline = None
+        self.subscription = None
         self._axon_started = False
         self._simulator = None
         self.device_events = Queue()
@@ -175,10 +177,10 @@ class LycheeMonitor:
         except Empty:
             pass
 
-        if self.session:
+        if self.subscription:
             try:
                 for _ in range(64):
-                    self.buffer.append(self.session.data_queue.get_nowait())
+                    self.buffer.append(self.subscription.data_queue.get_nowait())
             except Empty:
                 pass
         self.root.after(self.POLL_MS, self._poll)
@@ -210,7 +212,7 @@ class LycheeMonitor:
         if not serial:
             messagebox.showinfo("请选择传感器", "请先从列表中选择一个已发现的 Lychee 传感器。", parent=self.root)
             return
-        session = None
+        session = pipeline = subscription = None
         try:
             eeg_stream = next(
                 (stream for stream in self.axon.device_streams(serial)
@@ -222,30 +224,35 @@ class LycheeMonitor:
             if eeg_stream.sampling_mode != 0:
                 raise AxonError(-1, "实时波形监测只支持均匀采样的 EEG 流")
 
-            session = self.axon.new_session(serial, stream_id=eeg_stream.id)
+            session = self.axon.new_session(serial)
+            pipeline = session.create_pipeline(eeg_stream.id)
             if not self.args.no_filter:
                 # Same default as the native debugger: one IIR band-pass section
                 # at 0.4–70 Hz. Pass Q explicitly to match the native debugger;
                 # q = f0 / bandwidth for a Butterworth-style band-pass section.
                 bp_low, bp_high = 0.4, 70.0
                 bp_q = math.sqrt(bp_low * bp_high) / (bp_high - bp_low)
-                session.add_filter(AxonFilterStageConfig(
+                pipeline.add_filter(AxonFilterStageConfig(
                     filter_type=FilterType.IIR, kind=FilterKind.BAND_PASS,
                     cutoff_hz=bp_low, cutoff2_hz=bp_high,
                     order=1, q=bp_q,
                 ))
             if self.args.notch:
-                session.add_filter(AxonFilterStageConfig(
+                pipeline.add_filter(AxonFilterStageConfig(
                     filter_type=FilterType.IIR, kind=FilterKind.NOTCH, cutoff_hz=50.0,
                     order=4, q=30.0,
                 ))
+            subscription = pipeline.subscribe()
         except Exception as error:
-            if session is not None:
-                session.dispose()
+            for resource in (subscription, pipeline, session):
+                if resource is not None:
+                    resource.dispose()
             messagebox.showerror("无法开始采集", str(error), parent=self.root)
             return
 
         self.session = session
+        self.pipeline = pipeline
+        self.subscription = subscription
         self.buffer.clear()
         self.device_picker.configure(state="disabled")
         self.start_button.configure(state="disabled")
@@ -261,9 +268,17 @@ class LycheeMonitor:
         if session is None:
             return
         try:
-            session.dispose()
+            try:
+                self.subscription.dispose()
+            finally:
+                try:
+                    self.pipeline.dispose()
+                finally:
+                    session.dispose()
         finally:
             self.session = None
+            self.pipeline = None
+            self.subscription = None
             self.buffer.clear()
             self.device_picker.configure(state="readonly")
             self.start_button.configure(state="normal")

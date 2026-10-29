@@ -1,20 +1,35 @@
 # Axon Python Binding — Examples
 
+ABI 0.6 的 Session 只绑定设备；示例明确创建 EEG 管线和处理后订阅：
+
+```python
+session = axon.new_session(serial)
+pipeline = session.create_pipeline("eeg")
+pipeline.add_filter(stage)
+subscription = pipeline.subscribe()
+block = subscription.data_queue.get(timeout=3)
+subscription.dispose()
+pipeline.dispose()
+session.dispose()
+```
+
+监测器保留这三个对象，停止采集或初始化失败时按订阅、管线、Session 的顺序释放。
+
 本目录包含使用 `axon` Python binding 的示例程序。
 
 ## 环境准备
 
-先安装 ABI 0.4.0 的 Axon Python wheel，并选择与你的系统和 CPU 架构匹配的文件。旧版 ABI 不兼容：
+先安装 ABI 0.6.0 的 Axon Python wheel，并选择与你的系统和 CPU 架构匹配的文件。旧版 ABI 不兼容：
 
 推荐使用 `uv` 管理 Python 环境。
 
 ```shell
 cd axon-examples\python
 uv venv
-uv pip install --reinstall path/to/your/wheel/axon-0.4.0-py3-none-win_amd64.whl
+uv pip install --reinstall path/to/your/wheel/axon-0.6.0-py3-none-win_amd64.whl
 ```
 
-上面的文件名以 Windows x64 为例；macOS 和 Linux 请使用对应平台的 ABI 0.4.0 wheel。
+上面的文件名以 Windows x64 为例；macOS 和 Linux 请使用对应平台的 ABI 0.6.0 wheel。
 
 ## lychee_monitor.py — Lychee EEG 实时波形监测
 

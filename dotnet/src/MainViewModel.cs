@@ -3,6 +3,11 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Threading;
 using Axon;
+using Axon.Data;
+using Axon.Devices;
+using Axon.Diagnostics;
+using Axon.Processing;
+using Axon.Sessions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ScottPlot;
@@ -21,7 +26,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private readonly ConcurrentQueue<SampleBlock> _dataBlocks = new();
     private readonly Dictionary<string, string> _deviceMap = new();
     private readonly DispatcherTimer _timer;
-    private AxonSession? _session;
+    private Session? _session;
+    private StreamSubscription? _subscription;
     private CancellationTokenSource? _dataReaderCancellation;
     private Task? _dataReaderTask;
     private Simulator? _simulator;
@@ -159,9 +165,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
             _simulator = _axon.AddSimulator(
                 DeviceModel.Custom,
                 request.Serial,
-                new CustomSimulatorOptions(
-                    EegChannels: request.EegChannels == 0 ? null : request.EegChannels,
-                    NirsEnabled: request.NirsEnabled));
+                request.EegChannels > 0
+                    ? (request.NirsEnabled ? CustomSimulatorOptions.EegAndNirs(request.EegChannels) : CustomSimulatorOptions.Eeg(request.EegChannels))
+                    : CustomSimulatorOptions.Nirs());
             var streams = request.EegChannels > 0 && request.NirsEnabled
                 ? "EEG + NIRS"
                 : request.EegChannels > 0 ? "EEG" : "NIRS";
@@ -198,10 +204,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             if (!_dataBlocks.TryDequeue(out var block)) break;
             _buffer.Append(
-                (int)block.NumChannels,
-                (int)block.NumSamples,
+                block.ChannelCount,
+                block.FrameCount,
                 block.SampleRateHz,
-                block.Data);
+                block.Samples.ToArray());
         }
 
         if (RenderChart())
@@ -258,46 +264,61 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            var device = _axon.GetDevice(serial);
+            var device = _axon.Devices().Single(device => device.Serial == serial);
             var stream = CollectionSessionStartup.SelectUniformEeg(device.Streams);
-            var session = CollectionSessionStartup.CreateConfigured(
-                () => device.OpenSession(stream.Id),
-                session =>
-                {
-                    if (_args.NoFilter) return;
+            var session = device.OpenSession();
+            StreamSubscription subscription;
+            try
+            {
+                var pipeline = CollectionSessionStartup.CreateConfigured(
+                    () => session.GetStream(stream.Id).CreatePipeline(),
+                    pipeline =>
+                    {
+                        var filters = new List<FilterStageConfig>();
+                        if (_args.NoFilter) return;
 
-                    // Same default as the native debugger: a single IIR band-pass
-                    // section at 0.4–70 Hz. Use the same Q as the native debugger:
-                    // q = f0 / bandwidth.
-                    const double bpLow = 0.4, bpHigh = 70.0;
-                    var bpQ = Math.Sqrt(bpLow * bpHigh) / (bpHigh - bpLow);
-                    session.AddFilter(new FilterStageConfig(
-                        FilterType: FilterType.Iir,
-                        Kind: FilterKind.BandPass,
-                        CutoffHz: bpLow,
-                        Cutoff2Hz: bpHigh,
-                        Order: 1,
-                        Q: bpQ));
-
-                    if (_args.Notch)
-                        session.AddFilter(new FilterStageConfig(
+                        // Same default as the native debugger: a single IIR band-pass
+                        // section at 0.4–70 Hz. Use the same Q as the native debugger:
+                        // q = f0 / bandwidth.
+                        const double bpLow = 0.4, bpHigh = 70.0;
+                        var bpQ = Math.Sqrt(bpLow * bpHigh) / (bpHigh - bpLow);
+                        filters.Add(new FilterStageConfig(
                             FilterType: FilterType.Iir,
-                            Kind: FilterKind.Notch,
-                            CutoffHz: 50.0,
-                            Cutoff2Hz: 0.0,
-                            Order: 4,
-                            Q: 30.0));
-                });
+                            Kind: FilterKind.BandPass,
+                            CutoffHz: bpLow,
+                            Cutoff2Hz: bpHigh,
+                            Order: 1,
+                            Q: bpQ));
+
+                        if (_args.Notch)
+                            filters.Add(new FilterStageConfig(
+                                FilterType: FilterType.Iir,
+                                Kind: FilterKind.Notch,
+                                CutoffHz: 50.0,
+                                Cutoff2Hz: 0.0,
+                                Order: 4,
+                                Q: 30.0));
+
+                        pipeline.SetFilters(filters);
+                    });
+                subscription = pipeline.Subscribe();
+            }
+            catch
+            {
+                session.Dispose();
+                throw;
+            }
 
             _session = session;
+            _subscription = subscription;
             _dataBlocks.Clear();
             _dataReaderCancellation = new CancellationTokenSource();
-            _dataReaderTask = ReadSessionDataAsync(session, _dataReaderCancellation.Token);
+            _dataReaderTask = ReadSessionDataAsync(subscription, _dataReaderCancellation.Token);
             _buffer.Clear();
             IsCollecting = true;
             StatusText = _args.NoFilter
-                ? $"Collecting {serial} · {stream.NumChannels} ch · {stream.SampleRateHz:F0} Hz · unfiltered"
-                : $"Collecting {serial} · {stream.NumChannels} ch · {stream.SampleRateHz:F0} Hz · BP 0.4–70 Hz"
+                ? $"Collecting {serial} · {stream.ChannelCount} ch · {stream.SampleRateHz:F0} Hz · unfiltered"
+                : $"Collecting {serial} · {stream.ChannelCount} ch · {stream.SampleRateHz:F0} Hz · BP 0.4–70 Hz"
                   + (_args.Notch ? " + notch 50 Hz" : "");
         }
         catch (AxonException ex)
@@ -314,12 +335,12 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
     private bool CanStartCollection() => !IsCollecting && SelectedDevice is not null;
 
-    private async Task ReadSessionDataAsync(AxonSession session, CancellationToken cancellationToken)
+    private async Task ReadSessionDataAsync(StreamSubscription subscription, CancellationToken cancellationToken)
     {
         try
         {
-            await foreach (var block in session.Data
-                .WithCancellation(cancellationToken)
+            using var reader = subscription.CreateDataReader();
+            await foreach (var block in reader.ReadAllAsync(cancellationToken)
                 .ConfigureAwait(false))
                 _dataBlocks.Enqueue(block);
         }
@@ -332,6 +353,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     private void StopSessionData()
     {
         _dataReaderCancellation?.Cancel();
+        try { _subscription?.Dispose(); }
+        catch { /* best-effort */ }
+        _subscription = null;
         try { _session?.Dispose(); }
         catch { /* best-effort */ }
         try { _dataReaderTask?.GetAwaiter().GetResult(); }

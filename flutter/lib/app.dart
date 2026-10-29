@@ -39,7 +39,9 @@ class AxonDemoScreen extends StatefulWidget {
 
 class _AxonDemoScreenState extends State<AxonDemoScreen> {
   late final Axon _axon;
-  AxonSession? _session;
+  AxonSession? _deviceSession;
+  AxonProcessingPipeline? _pipeline;
+  AxonSubscription? _session;
   AxonSimulator? _simulator;
   StreamSubscription<SampleBlock>? _dataSub;
   bool _running = false;
@@ -78,15 +80,19 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
           }(),
       };
       final stream = selectDemoStream(_axon.deviceStreams(serial));
-      final session = _axon.newSession(serial, streamId: stream.id);
-      _session = session;
+      final deviceSession = _axon.newSession(serial);
+      _deviceSession = deviceSession;
+      final pipeline = deviceSession.createPipeline(stream.id);
+      _pipeline = pipeline;
       _numChannels = stream.numChannels;
       _sampleRateHz = stream.sampleRateHz;
       _channel = 0;
       _recorded.clear();
       for (final filter in _filters) {
-        session.addFilter(filter.toStage());
+        pipeline.addFilter(filter.toStage());
       }
+      final session = pipeline.subscribe();
+      _session = session;
       // 默认频谱配置：fft 1024、hop 512（50% 重叠）、Hann、symmetric、Amplitude 刻度。
       session.configureSpectrum(fftSize: 1024, hop: 512);
       // 默认信号分析配置：与频谱同参数，selectedChannel 跟随当前通道。
@@ -117,6 +123,10 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
     _dataSub = null;
     _session?.dispose();
     _session = null;
+    _pipeline?.dispose();
+    _pipeline = null;
+    _deviceSession?.dispose();
+    _deviceSession = null;
     _simulator?.stop();
     _simulator = null;
     setState(() => _running = false);
@@ -157,6 +167,8 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
   void dispose() {
     _dataSub?.cancel();
     _session?.dispose();
+    _pipeline?.dispose();
+    _deviceSession?.dispose();
     _simulator?.stop();
     _axon.dispose();
     super.dispose();

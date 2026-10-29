@@ -4,7 +4,7 @@ import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from axon import AxonError, SampleBlock
 
@@ -25,6 +25,18 @@ class _FakeSession:
         self.disposed = False
         self.filters = []
         self.fail_configuration = False
+        self.pipeline = None
+        self.subscription = None
+
+    def create_pipeline(self, stream_id):
+        self.stream_id = stream_id
+        self.pipeline = _FakeSession()
+        self.pipeline.fail_configuration = self.fail_configuration
+        return self.pipeline
+
+    def subscribe(self):
+        self.subscription = _FakeSession()
+        return self.subscription
 
     def add_filter(self, stage):
         if self.fail_configuration:
@@ -113,11 +125,13 @@ class TestMonitorConfiguration(unittest.TestCase):
         monitor = LycheeMonitor.__new__(LycheeMonitor)
         monitor.root = None
         monitor.args = SimpleNamespace(no_filter=False, notch=False)
-        def new_session(serial, stream_id=None):
-            monitor.created_session_args = (serial, stream_id)
+        def new_session(serial):
+            monitor.created_session_args = (serial,)
             return session
         monitor.axon = SimpleNamespace(device_streams=lambda serial: [stream], new_session=new_session)
         monitor.session = None
+        monitor.pipeline = None
+        monitor.subscription = None
         monitor.buffer = WaveformBuffer()
         monitor.device_picker = _FakeWidget()
         monitor.start_button = _FakeWidget()
@@ -137,11 +151,16 @@ class TestMonitorConfiguration(unittest.TestCase):
         )
         session = _FakeSession()
         monitor = self._configured_monitor(stream, session)
-        monitor.start_session()
+        with patch("lychee_monitor.messagebox.showerror"):
+            monitor.start_session()
 
-        self.assertEqual(monitor.created_session_args, ("SIM-1", "eeg"))
-        self.assertEqual(len(session.filters), 1)
-        self.assertFalse(hasattr(session.filters[0], "sample_rate_hz"))
+        self.assertEqual(monitor.created_session_args, ("SIM-1",))
+        self.assertEqual(session.stream_id, "eeg")
+        self.assertIs(monitor.session, session)
+        self.assertIs(monitor.pipeline, session.pipeline)
+        self.assertIs(monitor.subscription, session.pipeline.subscription)
+        self.assertEqual(len(session.pipeline.filters), 1)
+        self.assertFalse(hasattr(session.pipeline.filters[0], "sample_rate_hz"))
         self.assertIn("8 通道", monitor.status.value)
         self.assertIn("256 Hz", monitor.status.value)
 
@@ -173,11 +192,15 @@ class TestMonitorConfiguration(unittest.TestCase):
             monitor.start_session()
 
         self.assertTrue(session.disposed)
+        self.assertTrue(session.pipeline.disposed)
         self.assertIsNone(monitor.session)
 
     def test_stop_session_releases_session_and_restores_start_controls(self):
         monitor = LycheeMonitor.__new__(LycheeMonitor)
         monitor.session = _FakeSession()
+        monitor.pipeline = _FakeSession()
+        monitor.subscription = _FakeSession()
+        owned = (monitor.session, monitor.pipeline, monitor.subscription)
         monitor.buffer = WaveformBuffer()
         monitor.device_picker = _FakeWidget()
         monitor.start_button = _FakeWidget()
@@ -189,10 +212,27 @@ class TestMonitorConfiguration(unittest.TestCase):
         monitor.stop_session()
 
         self.assertIsNone(monitor.session)
+        self.assertIsNone(monitor.pipeline)
+        self.assertIsNone(monitor.subscription)
+        self.assertTrue(all(item.disposed for item in owned))
         self.assertTrue(monitor.buffer.channel_count == 0)
         self.assertTrue(monitor.start_button.configured["state"] == "normal")
         self.assertTrue(monitor.stop_button.configured["state"] == "disabled")
         self.assertTrue(monitor.device_picker.configured["state"] == "readonly")
+
+    def test_stop_still_releases_parents_when_subscription_cleanup_fails(self):
+        stream = SimpleNamespace(id="eeg", kind=0, sampling_mode=0,
+                                 sample_rate_hz=250, num_channels=3)
+        session = _FakeSession()
+        monitor = self._configured_monitor(stream, session)
+        monitor.start_session()
+        pipeline = monitor.pipeline
+        monitor.subscription.dispose = Mock(side_effect=RuntimeError("close failed"))
+        with self.assertRaisesRegex(RuntimeError, "close failed"):
+            monitor.stop_session()
+        self.assertTrue(pipeline.disposed)
+        self.assertTrue(session.disposed)
+        self.assertIsNone(monitor.subscription)
 
 
 if __name__ == "__main__":

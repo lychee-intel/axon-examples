@@ -39,7 +39,7 @@ dotnet restore src --force --no-http-cache
 dotnet restore tests --force --no-http-cache
 ```
 
-The sample selects a uniformly sampled EEG stream explicitly. When replacing an existing package with the same version, remove only `../target/dotnet-nuget-cache-abi040/axon/0.4.0` before restoring so NuGet reads the new local package.
+The sample selects a uniformly sampled EEG stream explicitly. When replacing an existing package with the same version, remove only `../target/dotnet-nuget-cache-abi040/axon/0.6.0` before restoring so NuGet reads the new local package.
 
 ## Running
 
@@ -81,7 +81,7 @@ dotnet/
 ├── LycheeMonitor.sln
 ├── nuget.config                   # Local NuGet feed pointing to packages/
 ├── packages/
-│   └── Axon.0.4.0.nupkg          # Axon binding NuGet package (with native lib)
+│   └── Axon.0.6.0.nupkg          # Axon binding NuGet package (with native lib)
 ├── src/
 │   ├── LycheeMonitor.csproj       # WPF app (net8.0-windows)
 │   ├── Program.cs                 # Entry point + CLI arg parsing
@@ -92,3 +92,5 @@ dotnet/
     ├── WaveformBufferTests.csproj
     └── WaveformBufferTests.cs     # Unit tests for WaveformBuffer
 ```
+
+ABI 0.6: collection opens one device Session, selects a uniform EEG stream, creates an explicit processing pipeline, then subscribes to its output. Session disposal closes the subscription and pipeline.
