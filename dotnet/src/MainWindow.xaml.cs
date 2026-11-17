@@ -11,7 +11,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         // Give the ViewModel the Plot from the WPF control
-        _vm = new MainViewModel(args, PlotView.Plot, MessageBox.Show, ShowCustomSimulatorDialog);
+        _vm = new MainViewModel(args, PlotView.Plot, MessageBox.Show);
         DataContext = _vm;
 
         _vm.PlotUpdated += () => PlotView.Refresh();
@@ -19,9 +19,4 @@ public partial class MainWindow : Window
         Closing += (_, _) => _vm.Dispose();
     }
 
-    private CustomSimulatorRequest? ShowCustomSimulatorDialog()
-    {
-        var dialog = new CustomSimulatorDialog { Owner = this };
-        return dialog.ShowDialog() == true ? dialog.Request : null;
-    }
 }

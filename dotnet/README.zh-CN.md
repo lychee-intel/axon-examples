@@ -1,107 +1,64 @@
 # Axon .NET 示例 — Lychee EEG 监测器
 
-基于 WPF 的桌面应用，使用 Axon C# 绑定和 ScottPlot 实时显示 Lychee 设备或内置 Lychee PFC 模拟器的 EEG 波形。
+[English](README.md)
 
-## 功能
+基于 WPF、Axon 0.10.0 绑定（原生 ABI 0.10.x）和 ScottPlot 的 EEG 波形监测器。
+从设备描述中选择均匀采样 EEG 流，读取实际采样率与通道数。
 
-- **设备发现** — 自动检测局域网上的 Lychee EEG 硬件
-- **模拟器** — Axon 启动后点击页面上的 **Add simulator**，创建虚拟 3 通道、250 Hz 设备
-- **自定义模拟器** — 点击 **Add custom simulator** 设置 serial、0–64 个 EEG 通道，并可选启用双通道 NIRS
-- **实时波形** — 滚动多通道 EEG 显示，自动量程
-- **0.4–70 Hz 带通滤波** — 默认启用 IIR 单节滤波器，与原生调试器一致（`--no-filter` 可禁用，`--notch` 叠加 50 Hz 陷波）
-- **暗色主题** — 与 Python 示例一致的视觉风格
+- **Add Lychee BCI100** 创建厂商模拟器：3 通道 EEG、250 Hz。
+- 默认启用 0.4–70 Hz IIR 带通；`--no-filter` 禁用，`--notch` 叠加 50 Hz 陷波。
+- 停止采集释放订阅、pipeline 和设备 Session，窗口关闭时结束设备发现。
 
-## ABI 0.4 升级
+## 构建与运行
 
-本示例使用匹配的 Axon 0.6.0 binding 和原生 DLL，并显式选择均匀采样 EEG 流。
-在本目录执行以下命令重新打包、恢复依赖：
-
-当 `axon` 与 `axon-examples` 仓库位于同一父目录时，项目会默认引用 `axon/bindings/dotnet/Axon` 源码；独立检出时使用下方打包的 NuGet 包。
-
-本地源码模式运行前，先在 `axon` 仓库根目录构建对应配置的原生库；示例构建时会将其复制到应用输出目录，避免误加载系统中其他版本的 `axon.dll`。
+需要 Windows、.NET 8 或更新 SDK、Rust、Python 和 PowerShell（`pwsh`）。
+将 `axon` 与 `axon-examples` 放在同一父目录；在本目录执行：
 
 ```powershell
-cargo build -p axon-ffi
-```
-
-```powershell
-$axon = (Resolve-Path ..\..\axon).Path
-cargo build --manifest-path "$axon\Cargo.toml" -p axon-ffi --release
-$stage = Join-Path $PWD '..\target\axon-package-abi040'
-$native = Join-Path $stage 'win-x64\native'
-New-Item -ItemType Directory -Force $native | Out-Null
-Copy-Item "$axon\target\release\axon.dll" (Join-Path $native 'axon.dll') -Force
-dotnet pack (Join-Path $axon 'bindings\dotnet\Axon\Axon.csproj') -c Release "-p:AxonNativeLibDir=$stage" -o .\packages
-dotnet restore src --force --no-http-cache
-dotnet restore tests --force --no-http-cache
-```
-
-同版本替换包时，先移除 `../target/dotnet-nuget-cache-abi040/axon/0.6.0` 缓存目录，再执行恢复。
-
-## 环境要求
-
-- .NET 8.0+ SDK
-
-`Axon` NuGet 包（含原生 `axon.dll`）已包含在 `dotnet/packages/` 中。
-如需从 `axon` 仓库重新打包：
-
-```bash
-# 在 axon 仓库根目录
-.\scripts\build-dotnet-nuget.ps1
-# 然后将 .nupkg 复制到此处
-cp outputs/Axon.*.nupkg ../axon-examples/dotnet/packages/
-```
-
-## 运行
-
-```bash
-# 启动应用后，在页面上点击 Add simulator（无需硬件）
+pwsh ../../axon/scripts/build-native.ps1 -Profile debug
 dotnet run --project src
-
-# 指定设备 serial
-dotnet run --project src -- --serial AABBCC
-
-# 自定义时窗、禁用滤波
-dotnet run --project src -- --window 10 --no-filter
-
-# 显示帮助
-dotnet run --project src -- --help
+dotnet test tests
 ```
+
+运行 `dotnet run --project src -c Release` 前，使用 `-Profile release` 构建原生包。
+源码引用模式会从 `axon/outputs/native/windows/<configuration>/` 复制
+`axon.dll`、`lsl.dll` 和 `LSL-*.txt` 到程序旁边。缺少原生包时构建会给出准备命令。
+可用 `AxonNativeDllPath` 指向另一份完整、匹配的原生包。
+
+采集采用设备 Session → EEG stream → processing pipeline → output subscription；
+数据经托管 reader 传递，WPF 在 Dispatcher 上更新界面。
+
+## 独立 NuGet 模式
+
+找不到相邻绑定源码时，应用及测试使用 `packages/` 中的 Axon 0.10.0。
+从 Axon 源码生成包含匹配运行库的 NuGet 包：
+
+```powershell
+$axon = (Resolve-Path ../../axon).Path
+pwsh "$axon/scripts/build-native.ps1" -Profile release
+dotnet pack "$axon/bindings/dotnet/Axon/Axon.csproj" -c Release `
+  "-p:AxonNativeLibDir=$axon/outputs/native/windows/release" `
+  -p:AxonNativeRuntimeIdentifier=win-x64 -o ./packages
+dotnet restore src --force
+dotnet restore tests --force
+```
+
+ARM64 原生包使用 `win-arm64`。Axon、LSL 库和许可证须一起部署。
+本地缓存位于 `../target/dotnet-nuget-cache`；同版本替换包时只清理其中
+`axon/0.10.0`，再恢复依赖。
 
 ## 命令行参数
 
 | 参数 | 说明 |
-|---|---|
-| `--serial HEX` | 按 6 位十六进制 serial 添加设备 |
-| `--window SECONDS` | 波形显示时窗（默认 10.0 秒） |
-| `--no-filter` | 禁用 0.4–70 Hz 带通滤波器 |
-| `--notch` | 叠加 50 Hz 陷波（Q=30），接硬件时使用 |
-| `--log-level LEVEL` | 最低日志严重等级：trace, debug, information, warning, error, critical, none（默认） |
+| --- | --- |
+| `--serial HEX` | 指定六位十六进制 serial |
+| `--window SECONDS` | 波形窗口，默认 10 秒 |
+| `--no-filter` | 禁用 0.4–70 Hz 带通 |
+| `--notch` | 叠加 50 Hz 陷波，Q=30 |
+| `--log-level LEVEL` | trace、debug、information、warning、error、critical、none（默认） |
+| `--help` | 显示帮助 |
 
-## 构建
+例如：`dotnet run --project src -- --serial AABBCC --window 10 --notch`。
 
-```bash
-dotnet build src
-dotnet test tests
-```
-
-## 项目结构
-
-```
-dotnet/
-├── LycheeMonitor.sln
-├── nuget.config                   # 本地 NuGet 源，指向 packages/
-├── packages/
-│   └── Axon.0.6.0.nupkg          # Axon 绑定 NuGet 包（含原生库）
-├── src/
-│   ├── LycheeMonitor.csproj       # WPF 应用 (net8.0-windows)
-│   ├── Program.cs                 # 入口 + 命令行解析
-│   ├── MainWindow.xaml            # WPF 布局 (XAML)
-│   ├── MainWindow.xaml.cs         # 应用逻辑 + ScottPlot 渲染
-│   └── WaveformBuffer.cs          # 线程安全的环形采样缓冲区
-└── tests/
-    ├── WaveformBufferTests.csproj
-    └── WaveformBufferTests.cs     # WaveformBuffer 单元测试
-```
-
-ABI 0.6: collection opens one device Session, selects a uniform EEG stream, creates an explicit processing pipeline, then subscribes to its output. Session disposal closes the subscription and pipeline.
+当前绑定还提供独立 AXF 文件操作、离线 EEG 窗口/PSD 分析、原生频带峰值、
+传输健康状态和 LSL 发布。用法见 [.NET 接口参考](../docs/api/dotnet.md)。

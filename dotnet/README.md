@@ -2,95 +2,69 @@
 
 [中文](README.zh-CN.md)
 
-WPF desktop application that displays real-time EEG waveforms from a Lychee device or built-in Lychee PFC simulator, using the Axon C# binding and ScottPlot for visualization.
+WPF desktop application using the Axon 0.10.0 binding (native ABI 0.10.x),
+CommunityToolkit.Mvvm and ScottPlot. It selects a uniform EEG stream and reads
+its actual sample rate and channel count from the device descriptors.
 
-## Features
+- **Add Lychee BCI100** starts a vendor simulator with 3 EEG channels at 250 Hz.
+- Waveforms scroll with automatic scaling. A 0.4–70 Hz IIR bandpass is enabled
+  by default; `--no-filter` disables it and `--notch` adds a 50 Hz notch.
+- Stopping collection releases the subscription, pipeline and device Session.
+  Discovery continues until the window closes.
 
-- **Device discovery** — auto-detects Lychee EEG hardware on the LAN
-- **Simulator** — click **Add simulator** after Axon starts to create a virtual 3-channel, 250 Hz device
-- **Custom simulator** — configure a serial, 0–64 EEG channels, and optional 2-channel NIRS stream with **Add custom simulator**
-- **Real-time waveforms** — scrolling multi-channel EEG display with auto-scaling
-- **0.4–70 Hz bandpass filter** — single-section IIR filter applied by default, matching the native debugger (`--no-filter` to disable, `--notch` to add a 50 Hz notch)
-- **Dark theme** — matches the Python example's visual style
+## Build and run
 
-## Prerequisites
-
-- .NET 8.0+ SDK
-
-The example targets the Axon C# binding and C ABI 0.4. Its NuGet package includes the matching native `axon.dll`. When the `axon` and `axon-examples` repositories share a parent directory, the project defaults to the binding source at `axon/bindings/dotnet/Axon`; standalone checkouts use the local NuGet feed, which pins `Axon` to `packages/` and keeps the global package cache under `../target/dotnet-nuget-cache-abi040`.
-
-In local source mode, build the native library for the selected configuration in the `axon` repository before running. The example copies that library beside the app so it cannot accidentally load another system `axon.dll`.
+Use Windows with the .NET 8 SDK or later, Rust, Python and PowerShell (`pwsh`).
+Place `axon` and `axon-examples` next to each other. From this directory:
 
 ```powershell
-cargo build -p axon-ffi
-```
-
-From this directory, rebuild the package from the sibling `axon` checkout on Windows PowerShell:
-
-```powershell
-$axon = (Resolve-Path ..\..\axon).Path
-cargo build --manifest-path "$axon\Cargo.toml" -p axon-ffi --release
-$stage = Join-Path $PWD '..\target\axon-package-abi040'
-$native = Join-Path $stage 'win-x64\native'
-New-Item -ItemType Directory -Force $native | Out-Null
-Copy-Item "$axon\target\release\axon.dll" (Join-Path $native 'axon.dll') -Force
-dotnet pack (Join-Path $axon 'bindings\dotnet\Axon\Axon.csproj') -c Release "-p:AxonNativeLibDir=$stage" -o .\packages
-dotnet restore src --force --no-http-cache
-dotnet restore tests --force --no-http-cache
-```
-
-The sample selects a uniformly sampled EEG stream explicitly. When replacing an existing package with the same version, remove only `../target/dotnet-nuget-cache-abi040/axon/0.6.0` before restoring so NuGet reads the new local package.
-
-## Running
-
-```bash
-# Start the app, then click Add simulator (no hardware needed)
+pwsh ../../axon/scripts/build-native.ps1 -Profile debug
 dotnet run --project src
-
-# With a known device serial
-dotnet run --project src -- --serial AABBCC
-
-# Custom window duration and no filter
-dotnet run --project src -- --window 10 --no-filter
-
-# Show help
-dotnet run --project src -- --help
-```
-
-## CLI Options
-
-| Option              | Description                                          |
-| ------------------- | ---------------------------------------------------- |
-| `--serial HEX`      | Add a device by its 6-char hex serial                |
-| `--window SECONDS`  | Waveform display window (default 10.0)               |
-| `--no-filter`       | Disable the 0.4–70 Hz bandpass filter                |
-| `--notch`           | Add a 50 Hz notch (Q=30), useful with real hardware  |
-| `--log-level LEVEL` | Minimum log severity: trace, debug, information, warning, error, critical, none (default) |
-
-## Building
-
-```bash
-dotnet build src
 dotnet test tests
 ```
 
-## Project Structure
+For `dotnet run --project src -c Release`, first build the native bundle with
+`-Profile release`. Source mode copies `axon.dll`, `lsl.dll` and `LSL-*.txt` from
+`axon/outputs/native/windows/<configuration>/` beside the application. Missing
+bundle files fail the build with a preparation command. `AxonNativeDllPath` can
+select another complete matching bundle.
 
-```
-dotnet/
-├── LycheeMonitor.sln
-├── nuget.config                   # Local NuGet feed pointing to packages/
-├── packages/
-│   └── Axon.0.6.0.nupkg          # Axon binding NuGet package (with native lib)
-├── src/
-│   ├── LycheeMonitor.csproj       # WPF app (net8.0-windows)
-│   ├── Program.cs                 # Entry point + CLI arg parsing
-│   ├── MainWindow.xaml            # WPF layout (XAML)
-│   ├── MainWindow.xaml.cs         # Application logic + ScottPlot rendering
-│   └── WaveformBuffer.cs          # Thread-safe circular sample buffer
-└── tests/
-    ├── WaveformBufferTests.csproj
-    └── WaveformBufferTests.cs     # Unit tests for WaveformBuffer
+The application opens a device Session, selects uniform EEG, creates a processing
+pipeline and subscribes to its output. Managed readers feed the WPF Dispatcher.
+
+## Standalone NuGet mode
+
+Without a sibling binding checkout, the application and tests reference `Axon`
+0.10.0 from `packages/`. Prepare a matching package from the Axon checkout:
+
+```powershell
+$axon = (Resolve-Path ../../axon).Path
+pwsh "$axon/scripts/build-native.ps1" -Profile release
+dotnet pack "$axon/bindings/dotnet/Axon/Axon.csproj" -c Release `
+  "-p:AxonNativeLibDir=$axon/outputs/native/windows/release" `
+  -p:AxonNativeRuntimeIdentifier=win-x64 -o ./packages
+dotnet restore src --force
+dotnet restore tests --force
 ```
 
-ABI 0.6: collection opens one device Session, selects a uniform EEG stream, creates an explicit processing pipeline, then subscribes to its output. Session disposal closes the subscription and pipeline.
+Select `win-arm64` when packaging an ARM64 native build. Keep the Axon and LSL
+libraries and license notices together. The local NuGet cache is
+`../target/dotnet-nuget-cache`; if replacing a package with the same version,
+remove only its `axon/0.10.0` entry before restoring.
+
+## CLI options
+
+| Option | Description |
+| --- | --- |
+| `--serial HEX` | Select a device by its six-digit hex serial |
+| `--window SECONDS` | Display window, default 10 seconds |
+| `--no-filter` | Disable the 0.4–70 Hz bandpass |
+| `--notch` | Add a 50 Hz notch, Q=30 |
+| `--log-level LEVEL` | trace, debug, information, warning, error, critical, none (default) |
+| `--help` | Print usage |
+
+Example: `dotnet run --project src -- --serial AABBCC --window 10 --notch`.
+
+The current binding also provides standalone AXF files, offline EEG window/PSD
+analysis, native band peaks, transport health and LSL publication. See the
+[.NET API guide](../docs/api/dotnet.md) for examples.

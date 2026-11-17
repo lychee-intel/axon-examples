@@ -7,11 +7,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AxonProjectPath Condition="'$(AxonProjectPath)' == '' and Exists('$(MSBuildThisFileDirectory)..\..\..\axon\bindings\dotnet\Axon\Axon.csproj')">$(MSBuildThisFileDirectory)..\..\..\axon\bindings\dotnet\Axon\Axon.csproj</AxonProjectPath>
-    <AxonNativeDllPath Condition="'$(AxonNativeDllPath)' == '' and '$(AxonProjectPath)' != ''">$(MSBuildThisFileDirectory)..\..\..\axon\target\$([System.String]::Copy('$(Configuration)').ToLowerInvariant())\axon.dll</AxonNativeDllPath>
+    <AxonNativeDllPath Condition="'$(AxonNativeDllPath)' == '' and '$(AxonProjectPath)' != ''">$(MSBuildThisFileDirectory)..\..\..\axon\outputs\native\windows\$([System.String]::Copy('$(Configuration)').ToLowerInvariant())\axon.dll</AxonNativeDllPath>
+    <AxonNativeBundleDir Condition="'$(AxonNativeDllPath)' != ''">$([System.IO.Path]::GetDirectoryName('$(AxonNativeDllPath)'))</AxonNativeBundleDir>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Axon" Version="0.6.0" Condition="'$(AxonProjectPath)' == ''" />
+    <PackageReference Include="Axon" Version="0.10.0" Condition="'$(AxonProjectPath)' == ''" />
     <ProjectReference Include="$(AxonProjectPath)" Condition="'$(AxonProjectPath)' != ''" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.*" />
     <PackageReference Include="ScottPlot.WPF" Version="5.*" />
@@ -19,6 +20,12 @@
 
   <ItemGroup Condition="'$(AxonProjectPath)' != '' and Exists('$(AxonNativeDllPath)')">
     <Content Include="$(AxonNativeDllPath)" Link="axon.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(AxonNativeBundleDir)\lsl.dll;$(AxonNativeBundleDir)\LSL-*.txt" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <Target Name="ValidateAxonNativeBundle" BeforeTargets="PrepareForBuild" Condition="'$(AxonProjectPath)' != ''">
+    <Error Condition="!Exists('$(AxonNativeDllPath)')" Text="Build the matching native bundle first: pwsh axon/scripts/build-native.ps1 -Profile debug (or release for Release builds)." />
+    <Error Condition="!Exists('$(AxonNativeBundleDir)\lsl.dll') Or !Exists('$(AxonNativeBundleDir)\LSL-LICENSE.txt')" Text="The Axon native bundle must include lsl.dll and LSL license notices. Run scripts/build-native.ps1." />
+  </Target>
 
 </Project>

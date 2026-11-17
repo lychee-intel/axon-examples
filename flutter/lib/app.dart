@@ -8,7 +8,7 @@ import 'waveform.dart';
 import 'filter_config.dart';
 import 'device_stream_config.dart';
 
-/// 数据源：模拟器 / 力之真实数据（三路监听）/ EDF 文件。
+/// 数据源：Lychee BCI100 模拟器 / 力之真实数据。
 enum _DataSource { simulator, lychee }
 
 /// 应用根：MaterialApp + 主屏幕。
@@ -29,7 +29,7 @@ class AxonDemoApp extends StatelessWidget {
   }
 }
 
-/// 主屏幕：启停按钮、通道选择、实时波形画布、EDF 保存/加载。
+/// 主屏幕：启停按钮、通道选择和实时分析画布。
 class AxonDemoScreen extends StatefulWidget {
   const AxonDemoScreen({super.key});
 
@@ -46,11 +46,13 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
   StreamSubscription<SampleBlock>? _dataSub;
   bool _running = false;
   _DataSource _dataSource = _DataSource.simulator;
-  int _numChannels = 19;
+  int _numChannels = 3;
+  List<String> _channelLabels = List.generate(3, (i) => 'CH${i + 1}');
   double _sampleRateHz = 250;
   int _channel = 0;
   int _viewMode = 0; // 0=波形 1=频谱 2=信号
   final List<double> _recorded = [];
+
   /// Dart 侧维护的滤波器链（每次 start 时重建 native pipeline）。
   final List<FilterEntry> _filters = [FilterEntry()]; // 默认带一个 40Hz 低通
 
@@ -64,20 +66,20 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
     try {
       final serial = switch (_dataSource) {
         _DataSource.simulator => () {
-            _axon.start();
-            final simulator = _axon.startSimulator(
-              model: DeviceModel.lycheePfc,
-              serial: '0A1B2C',
-            );
-            _simulator = simulator;
-            return simulator.serial;
-          }(),
+          _axon.start();
+          final simulator = _axon.startSimulator(
+            model: DeviceModel.lycheeBci100,
+            serial: '0A1B2C',
+          );
+          _simulator = simulator;
+          return simulator.serial;
+        }(),
         _DataSource.lychee => () {
-            _axon.start();
-            final devices = _axon.devices();
-            if (devices.isEmpty) throw StateError('尚未发现已连接设备');
-            return devices.first.serial;
-          }(),
+          _axon.start();
+          final devices = _axon.devices();
+          if (devices.isEmpty) throw StateError('尚未发现已连接设备');
+          return devices.first.serial;
+        }(),
       };
       final stream = selectDemoStream(_axon.deviceStreams(serial));
       final deviceSession = _axon.newSession(serial);
@@ -86,6 +88,12 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
       _pipeline = pipeline;
       _numChannels = stream.numChannels;
       _sampleRateHz = stream.sampleRateHz;
+      _channelLabels = _axon
+          .deviceStreamChannels(serial, stream.id)
+          .map(
+            (channel) => channel.label.isEmpty ? channel.name : channel.label,
+          )
+          .toList(growable: false);
       _channel = 0;
       _recorded.clear();
       for (final filter in _filters) {
@@ -96,7 +104,11 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
       // 默认频谱配置：fft 1024、hop 512（50% 重叠）、Hann、symmetric、Amplitude 刻度。
       session.configureSpectrum(fftSize: 1024, hop: 512);
       // 默认信号分析配置：与频谱同参数，selectedChannel 跟随当前通道。
-      session.configureSignal(fftSize: 1024, hop: 512, selectedChannel: _channel);
+      session.configureSignal(
+        fftSize: 1024,
+        hop: 512,
+        selectedChannel: _channel,
+      );
       // 认知指标（Focus/Calm/SQI），供 SignalCanvas 下半部分显示。
       session.configureCognitive();
       session.events.listen((e) {
@@ -132,10 +144,8 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
     setState(() => _running = false);
   }
 
-
   void _showMessage(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void _openFilterSheet() {
@@ -144,24 +154,14 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
       filters: _filters,
       sampleRateHz: _sampleRateHz,
       onApply: (updated) {
-        setState(() => _filters
-          ..clear()
-          ..addAll(updated));
+        setState(
+          () => _filters
+            ..clear()
+            ..addAll(updated),
+        );
       },
     );
   }
-
-  /// 通道标签：力之设备使用 10-20 frontopolar 命名，其他使用编号。
-  String _channelLabel(int c) {
-    if (_dataSource == _DataSource.lychee) {
-      const names = ['Fp1', 'Fpz', 'Fp2'];
-      return c < names.length ? names[c] : 'Ch${c + 1}';
-    }
-    return 'Ch${c + 1}';
-  }
-
-  List<String> get _channelLabels =>
-      List.generate(_numChannels, _channelLabel);
 
   @override
   void dispose() {
@@ -211,7 +211,7 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                   segments: const [
                     ButtonSegment(
                       value: _DataSource.simulator,
-                      label: Text('模拟器'),
+                      label: Text('Lychee BCI100 模拟器'),
                       icon: Icon(Icons.memory),
                     ),
                     ButtonSegment(
@@ -226,12 +226,12 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                       : (sel) async {
                           final src = sel.first;
                           setState(() {
-                              _dataSource = src;
-                              _recorded.clear();
-                              _numChannels = src == _DataSource.simulator ? 19 : 3;
-                              _channel = 0;
-                              _sampleRateHz = 250;
-                            });
+                            _dataSource = src;
+                            _recorded.clear();
+                            _numChannels = 3;
+                            _channel = 0;
+                            _sampleRateHz = 250;
+                          });
                         },
                 ),
                 if (_running)
@@ -240,25 +240,45 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                     items: _channelLabels
                         .asMap()
                         .entries
-                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value),
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) {
                       if (v == null) return;
                       setState(() => _channel = v);
                       // 信号分析跟随当前通道
                       _session?.configureSignal(
-                        fftSize: 1024, hop: 512, selectedChannel: v,
+                        fftSize: 1024,
+                        hop: 512,
+                        selectedChannel: v,
                       );
                     },
                   ),
                 SegmentedButton<int>(
                   segments: const [
-                    ButtonSegment(value: 0, label: Text('波形'), icon: Icon(Icons.show_chart)),
-                    ButtonSegment(value: 1, label: Text('频谱'), icon: Icon(Icons.graphic_eq)),
-                    ButtonSegment(value: 2, label: Text('信号'), icon: Icon(Icons.insights)),
+                    ButtonSegment(
+                      value: 0,
+                      label: Text('波形'),
+                      icon: Icon(Icons.show_chart),
+                    ),
+                    ButtonSegment(
+                      value: 1,
+                      label: Text('频谱'),
+                      icon: Icon(Icons.graphic_eq),
+                    ),
+                    ButtonSegment(
+                      value: 2,
+                      label: Text('信号'),
+                      icon: Icon(Icons.insights),
+                    ),
                   ],
                   selected: {_viewMode},
-                  onSelectionChanged: (sel) => setState(() => _viewMode = sel.first),
+                  onSelectionChanged: (sel) =>
+                      setState(() => _viewMode = sel.first),
                 ),
               ],
             ),
@@ -274,14 +294,18 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
                   child: _viewMode == 1
-                      ? SpectrumCanvas(key: ObjectKey(_session), stream: _session?.spectrum ?? const Stream.empty(), channel: _channel)
+                      ? SpectrumCanvas(
+                          key: ObjectKey(_session),
+                          stream: _session?.spectrum ?? const Stream.empty(),
+                          channel: _channel,
+                        )
                       : _viewMode == 2
-                          ? SignalCanvas(
-                              key: ObjectKey(_session),
-                              stream: _session?.bandPower ?? const Stream.empty(),
-                              cognitiveStream: _session?.cognitive,
-                            )
-                          : WaveformCanvas(
+                      ? SignalCanvas(
+                          key: ObjectKey(_session),
+                          stream: _session?.bandPower ?? const Stream.empty(),
+                          cognitiveStream: _session?.cognitive,
+                        )
+                      : WaveformCanvas(
                           key: ObjectKey(_session),
                           stream: _session?.signal ?? const Stream.empty(),
                           numChannels: _numChannels,

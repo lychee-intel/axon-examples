@@ -38,7 +38,7 @@ AxonSimulator startSimulator({required DeviceModel model,
   required String serial, CustomSimulatorOptions? customOptions})
 ```
 
-Axon 已启动时调用。DeviceModel 包含 lycheePfc、lycheePfcNirs、lycheePfcSingleChannel、custom；仅 custom 必须且允许传 `CustomSimulatorOptions(eegChannels: ..., nirsEnabled: ...)`。eegChannels 可为 1–64 或 null，nirsEnabled 默认 false，至少启用一类信号。Custom EEG 为 250 Hz，双通道 NIRS 为 20 Hz。
+Axon 已启动时调用。DeviceModel 包含 lycheeBci100、lycheeBci100E、lycheeBcs100、lycheeBch100、custom；仅 custom 必须且允许传 `CustomSimulatorOptions(eegChannels: ..., nirsEnabled: ...)`。eegChannels 可为 1–64 或 null，nirsEnabled 默认 false，至少启用一类信号。Custom EEG 为 250 Hz，双通道 NIRS 为 20 Hz。Lychee 型号的固定 EEG 通道数依次为 3、3、1、32；BCI100-E 另含双通道 NIRS。
 
 模拟器返回 id、serial、model；`stop()` 幂等。Lychee serial 为六位十六进制，Custom serial 为 1–64 个 ASCII 字母、数字、点、下划线或短横线。不要让 serial 与其他设备重复。
 
@@ -97,22 +97,18 @@ hop 为 null 时使用半窗口。clipLow 与 clipHigh 必须同时给出或同�
 
 RecordingHandle 提供 `state`、`pushEvent({required int onset, int duration = 0, required String eventType, String description = ''})`、`RecordingResult finish()`、`abort()`、`dispose()`。onset 为绝对 epoch 微秒；duration 为非负微秒时长。finish 返回 path、Duration duration、totalSamples、numChannels、sampleRateHz、startTimestamp、endTimestamp 和 nullable lastSampleTimestamp。
 
-以下是可放入 Dart 入口文件的完整示例，使用 Custom 模拟器读取三块数据并保存。`sample.axf` 为输出文件，原生库须已部署。
+以下是可放入 Dart 入口文件的完整示例，使用 Lychee BCI100 厂商模拟器读取三块数据并保存。`sample.axf` 为输出文件，原生库须已部署。
 
 ```dart
 import 'package:axon_dart/axon.dart';
 
 Future<void> main() async {
-  final axon = Axon(options: const AxonCreateOptions(
-    providerFlags: AxonCreateProviderFlags.simulator,
-    lychee: LycheeProviderOptions(transportFlags: 0),
-  ));
+  final axon = Axon();
   try {
     axon.start();
     final simulator = axon.startSimulator(
-      model: DeviceModel.custom,
-      serial: 'dart-demo',
-      customOptions: CustomSimulatorOptions(eegChannels: 2),
+      model: DeviceModel.lycheeBci100,
+      serial: '0A1B2C',
     );
     try {
       final session = axon.newSession(simulator.serial);
@@ -176,5 +172,38 @@ Axon 提供同步导出：
 原始订阅与管线提供 `startLsl({LslPublishOptions? options}) -> LslPublisher`。`LslPublishOptions(name: ..., queueCapacity: 64)` 的名称可省略，队列容量为正。publisher 提供 status、stop()、dispose()；status 包含发布状态、名称、sourceId、logicalId、publishedFrames、rejectedBlocks、error。发布失败不会因为 stop 变回成功。
 
 `axon.healthSnapshot() -> HealthSnapshot` 返回复制的不可变快照；`axon.transportStatus -> Stream<TransportStatusEvent>` 提供变化。先 listen，再 start/查询初始快照，通知不补发历史。Dart listener 的 cancel 需要 await，最后 dispose Axon。snapshot 含 health、providers；provider 含 providerId、health、categories，类别含 transport、health、detail。
+
+## 离线 EEG 窗口与频谱
+
+`OfflineEegAnalyzer` 无需 Axon 或 Session。先检查 `available` 和
+`spectrumAvailable`，再调用可选的原生接口：
+
+```dart
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:axon_dart/axon.dart';
+
+void main() {
+  final analyzer = OfflineEegAnalyzer();
+  if (!analyzer.available || !analyzer.spectrumAvailable) return;
+  final samples = Float32List.fromList(
+    List.generate(1024, (i) => sin(2 * pi * 10 * i / 256)),
+  );
+  final window = analyzer.analyze(samples, sampleRateHz: 256,
+      clipLow: -2, clipHigh: 2, transientDelta: 0.5, includeSpectrum: true);
+  if (window.spectrum case final psd?) {
+    final alpha = analyzer.spectrumBand(Float32List.fromList(psd),
+        fftSize: 1024, sampleRateHz: 256, lowHz: 8, highHz: 13);
+    print('Alpha: ${alpha.power}, peak: ${alpha.peakHz} Hz');
+  }
+}
+```
+
+窗口长度为 4–65536 点的 2 的幂，单通道。status 为 0 可用、1 点数不足、
+2 非有限样本、3 平线、4 数值失败；不可用指标为 null，有效零值为 0。
+clippedFraction/transientFraction 只有启用相应阈值时可用。
+PSD 单位为输入单位平方/Hz，含 DC/Nyquist；Powers 单位为输入单位平方。
+先平均有效窗口的 PSD，再用 spectrumBand 计算频带功率和峰值频率。
+超出 Nyquist 的完整频带不可用，零谱无峰，并列峰取最低频率；上界仅在 Nyquist 时包含。
 
 LSL 部署及支持范围见[接入指南](../getting-started.md)，共享错误码见[公共约定](types.md#错误码)。返回[接口总览](../api.md)。

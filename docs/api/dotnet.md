@@ -32,7 +32,7 @@
 
 Device 是身份视图，不持有连接；断线后查询可能失败。Session.Streams 为其流描述快照，不能把持有 Device/Session 当作设备永远在线的保证。
 
-`axon.AddSimulator(DeviceModel model, string serial, CustomSimulatorOptions? customOptions=null) -> Simulator` 要求已 Start。DeviceModel 为 LycheePfc、LycheePfcNirs、LycheePfcSingleChannel、Custom；只有 Custom 需要 customOptions，其他型号禁止传入。
+`axon.AddSimulator(DeviceModel model, string serial, CustomSimulatorOptions? customOptions=null) -> Simulator` 要求已 Start。DeviceModel 为 LycheeBci100、LycheeBci100E、LycheeBcs100、LycheeBch100、Custom；只有 Custom 需要 customOptions，其他型号禁止传入。Lychee 型号的固定 EEG 通道数依次为 3、3、1、32，BCI100-E 另含双通道 NIRS。
 
 CustomSimulatorOptions 使用工厂创建：`Eeg(int channels)`、`Nirs()`、`EegAndNirs(int channels)`，EEG 为 1–64 通道、250 Hz，NIRS 双通道、20 Hz。Simulator 提供 Id、Serial、Model、Device；Stop() 幂等，Dispose() 也会停止。serial 约束见[Python 模拟器说明](python.md#模拟器)，与语言无关。
 
@@ -99,17 +99,12 @@ SubscriptionOptions.Delivery 默认 DeliveryKinds.All，控制原生投递类别
 以下代码可作为控制台应用的顶层入口，在已安装包和部署原生库后读取三个 block 并保存文件。取消令牌限制等待时间，超时抛 OperationCanceledException，未 finish 的录制在清理时取消。
 
 ```csharp
-using Axon.Configuration;
 using Axon.Devices;
 
-using var axon = new Axon.Axon(new AxonCreateOptions
-{
-    Providers = AxonProviderFlags.Simulator,
-    Lychee = new LycheeProviderOptions { Transports = LycheeTransportFlags.None },
-});
+using var axon = new Axon.Axon();
 axon.Start();
 using var simulator = axon.AddSimulator(
-    DeviceModel.Custom, "dotnet-demo", CustomSimulatorOptions.Eeg(2));
+    DeviceModel.LycheeBci100, "010203");
 using var session = simulator.Device.OpenSession();
 using var raw = session.GetStream("eeg").Subscribe();
 using var reader = raw.CreateDataReader();
@@ -161,5 +156,35 @@ AxfExporter 为静态入口，无需 Axon：
 `axon.GetHealthSnapshot()` 返回不可变 HealthSnapshot；`axon.TransportStatusChanged` 事件提供变化。先注册事件，再启动或读取初始快照，通知不回放。handler 在托管 worker 上执行，允许查询和释放，handler 异常隔离；UI 更新仍需 Dispatcher 等框架机制。
 
 Health 为 Healthy/Degraded/Failed，类别为 Network/Usb/Serial/Ble，类别缺席表示未报告；状态变化不等价于设备断线。快照含 Health、Providers，每个 provider 含 ProviderId、Health、Categories；类别含 Transport、Health、Detail。快照独立拥有复制数据。
+
+## 离线 EEG 窗口与频谱
+
+`Axon.Processing.OfflineEegAnalyzer` 无需创建 Axon 或 Session。
+先检查 `Available` 和 `SpectrumAvailable`，旧版 ABI 0.10 可能不含可选接口。
+
+```csharp
+using Axon.Processing;
+
+var analyzer = new OfflineEegAnalyzer();
+if (analyzer.Available && analyzer.SpectrumAvailable)
+{
+    var samples = Enumerable.Range(0, 1024)
+        .Select(i => (float)Math.Sin(2 * Math.PI * 10 * i / 256)).ToArray();
+    var window = analyzer.Analyze(samples, 256,
+        new QualityOptions { ClipLow = -2, ClipHigh = 2 }, includeSpectrum: true);
+    if (window.Spectrum is { } psd)
+    {
+        var alpha = analyzer.SpectrumBand(psd.ToArray(), 1024, 256, 8, 13);
+        Console.WriteLine($"Alpha: {alpha.Power}, peak: {alpha.PeakHz} Hz");
+    }
+}
+```
+
+输入为单通道 4–65536 点、长度为 2 的幂。结果不可变，Status 区分 Usable、
+Insufficient、NonFinite、Flatline、NumericalFailure；拒绝窗口的 Spectrum 为 null。
+Powers 按 SignalBand 顺序，单位为输入单位平方，不可用为 null，有效零值为 0。
+PSD 是含 DC/Nyquist 的单边 symmetric-Hann 密度，单位为输入单位平方/Hz。
+多窗口先平均有效 PSD，再用 SpectrumBand 积分/找峰；峰值相同取最低频率，
+零功率无峰，超出 Nyquist 的完整频带不可用。上界通常不含，仅等于 Nyquist 时包含。
 
 返回[接口总览](../api.md)。

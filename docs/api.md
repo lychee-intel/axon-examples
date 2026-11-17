@@ -52,7 +52,7 @@ C 入口包括 `axon_create`、`axon_start`、`axon_shutdown`、`axon_free`、`a
 | 创建模拟器 | `axon.start_simulator(model, serial, custom_options)` | `axon.startSimulator(model: ..., serial: ..., customOptions: ...)` | `axon.AddSimulator(model, serial, customOptions)` |
 | 停止 | `simulator.stop()` | `simulator.stop()` | `simulator.Stop()` |
 
-`DeviceModel` 区分 Lychee PFC、PFC+NIRS、单通道 PFC 和 Custom。只有 Custom 必须且允许传入自定义选项：可启用 1–64 通道 EEG（250 Hz）、双通道 NIRS（20 Hz），或同时启用，至少启用一种。Lychee 型号采用固定配置和六位十六进制 serial。句柄提供 id、serial、model，stop 幂等。
+当前 Dart/.NET `DeviceModel` 区分 Lychee BCI100、BCI100-E、BCS100、BCH100 和 Custom。只有 Custom 必须且允许传入自定义选项：可启用 1–64 通道 EEG（250 Hz）、双通道 NIRS（20 Hz），或同时启用，至少启用一种。Lychee 型号采用固定配置和六位十六进制 serial。句柄提供 id、serial、model，stop 幂等。各语言名称见对应接口参考。
 
 C 使用 `axon_simulator_start` / `axon_simulator_stop`。模拟器先注册成设备，再通过普通 Session 读数。
 
