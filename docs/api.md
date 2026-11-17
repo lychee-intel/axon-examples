@@ -2,7 +2,16 @@
 
 本页面向 ABI 0.10.x，说明常用接口的职责、跨语言名称和生命周期。Python、Dart 与 .NET 的方法名不同，但都通过同一 Rust/C ABI 运行时工作。Rust 高层 API 单独通过 `axon-api` 提供，不应直接套用绑定的方法名。
 
-本页中的 `axon`、`session`、`raw`、`pipeline`、`processed` 分别表示已创建的对应对象。使用语言包时，可通过 IDE 的类型提示查看完整参数与返回类型；直接调用 C ABI 时，使用同版本 SDK 发布包提供的 `axon.h` 声明结构体与函数。
+本页提供对象模型与跨语言速查；参数、默认值、返回类型和示例见以下手册。所有文档可在本仓库内阅读，无需 SDK 源码。
+
+| 手册 | 内容 |
+| --- | --- |
+| [Python API](api/python.md) | 创建配置、发现、订阅、滤波与分析、录制、AXF 读写与导出、LSL、健康事件 |
+| [Dart/Flutter API](api/dart.md) | 命名参数、Stream 消费、订阅取消、完整模拟采集示例与文件接口 |
+| [.NET API](api/dotnet.md) | 配置类型、Device/Session、异步 reader、队列容量、录制、文件与发布 |
+| [数据类型与公共约定](api/types.md) | 枚举值、数据布局、分析参数约束、结果字段、状态机和错误码 |
+
+本页中的 `axon`、`session`、`raw`、`pipeline`、`processed` 分别表示已创建的对应对象。直接调用 C ABI 时，使用同版本 SDK 发布包提供的 `axon.h` 声明结构体与函数；本页不是完整 C 头文件替代品。
 
 ## 对象与所有权
 
@@ -110,7 +119,7 @@ C 使用 `axon_subscription_set_spectrum/signal/cognitive/time_quality`，对应
 
 C 使用 `axon_subscription_recording_start`（仅原始订阅）或 `axon_pipeline_recording_start`；随后使用 `axon_recording_push_event/finish/cancel/state/free`。finish 返回的路径需要 `axon_free_string` 释放。
 
-Python、Dart 与 .NET 提供 `AxfReader` 查询描述、metadata、事件与样本；.NET 还提供 `AxfWriter`，无需 Axon/设备即可写入。C 对应 `axon_axf_reader_*`、`axon_axf_read_*` 和 `axon_axf_writer_*`，读取结果有独立 free 函数，writer 也必须显式 finish。
+Python、Dart 与 .NET 提供 `AxfReader` 查询描述、metadata、事件与样本，以及无需 Axon/设备即可写入的 `AxfWriter`。C 对应 `axon_axf_reader_*`、`axon_axf_read_*` 和 `axon_axf_writer_*`。读取结果有独立 free 函数；writer 必须显式 finish，直接关闭 writer 不会自动完成文件，也不会像取消采集录制一样删除文件。
 
 | 导出目标 | Python | Dart | .NET |
 | --- | --- | --- | --- |

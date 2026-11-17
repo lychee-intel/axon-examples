@@ -10,7 +10,7 @@ Axon 是力之的生理信号采集与处理 SDK，以 Rust 实现采集、信�
 | --- | --- |
 | [SDK 概览](docs/overview.md) | 核心能力、设备与数据流、语言与平台、典型使用场景 |
 | [接入指南](docs/getting-started.md) | 运行库准备、采集流程、无硬件 Python 示例与资源释放 |
-| [接口参考](docs/api.md) | Axon、Session、订阅、处理管线、录制、AXF、LSL 与健康状态 |
+| [接口参考](docs/api.md) | 跨语言速查，以及 Python、Dart/Flutter、.NET 详细手册与数据类型约定 |
 
 建议先阅读概览和接入指南，再按接口参考中的语言对照表查找具体入口。
 
