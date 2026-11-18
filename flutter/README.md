@@ -1,6 +1,6 @@
 # Flutter EEG 示例
 
-桌面波形、频谱和信号分析，使用 0.10.0 绑定和匹配的原生 ABI 0.10.x。
+桌面波形、频谱和信号分析，使用 0.10.3 绑定和匹配的原生 ABI 0.10.x。
 Flutter SDK 有两种交付方式：访问自建 Pub 仓库，或使用 SDK 压缩包。
 本仓库默认的相邻源码依赖用于 SDK 联调，见后文的源码开发说明。
 
@@ -22,8 +22,8 @@ Motion 等不规则流不适用于这里的滤波和波形时间轴。
 停止后保留本轮曲线；再次开始或更换数据源时清空。断开、恢复或计算错误会
 清除失效的读数并显示状态。该分数与“信号”页已有的 Focus/Calm/SQI 指标不同。
 
-本功能需要包含新增注意力接口的 Dart 绑定和原生库，之前发布的 0.10.0 SDK
-ZIP / Pub 包尚不包含这些接口。本轮请使用相邻源码开发方式，重新执行
+本功能需要包含新增注意力接口的 Dart 绑定和原生库，0.10.3 Windows x64
+一体化 Pub 包已包含两者；使用下文 hosted 配置即可。源码开发时执行
 `pwsh ../../axon/scripts/build-native.ps1 -Profile debug`，并确保没有旧 SDK 的
 `pubspec_overrides.yaml` 覆盖源码绑定；`AXON_LIB_PATH` 指向此次构建的动态库。
 旧原生库缺少接口时，注意力页显示错误，其余视图仍可使用。
@@ -37,10 +37,10 @@ ZIP / Pub 包尚不包含这些接口。本轮请使用相邻源码开发方式�
 
 | 方式 | Dart 绑定来源 | 原生库来源 |
 | --- | --- | --- |
-| 自建 Pub 仓库 | 从 Gitea 的 LycheePublic 拉取 `axon_dart` | 单独准备同版本、同平台/架构的原生包，也可使用 SDK ZIP 内的 `native/<rid>/` |
+| 自建 Pub 仓库 | 从 Gitea 的 LycheePublic 拉取 `axon_dart 0.10.3` | 包内自带 Windows x64 Release 原生库，Flutter 自动部署 |
 | SDK 压缩包 | 解压后通过 `path` 引用 `axon_dart/` | 同一 ZIP 内的 `native/<rid>/` |
 
-两种方式均无需检出 Axon 源码或安装 Rust。当前 Pub 包只包含 Dart 绑定，不会自动安装或部署原生库。下面两种依赖配置选择一种，不要同时创建。
+两种方式均无需检出 Axon 源码或安装 Rust。一体化 Pub 包目前仅支持 Windows x64，其他桌面平台使用 SDK ZIP。下面两种依赖配置选择一种，不要同时创建。
 
 ## 方式一：访问自建 Pub 仓库
 
@@ -58,7 +58,7 @@ http://192.168.1.250:30000/api/packages/LycheePublic/pub/
 dependencies:
   axon_dart:
     hosted: http://192.168.1.250:30000/api/packages/LycheePublic/pub/
-    version: 0.10.0
+    version: 0.10.3
 ```
 
 在本示例仓库中，创建 `flutter/pubspec_overrides.yaml` 覆盖默认源码依赖：
@@ -67,18 +67,18 @@ dependencies:
 dependency_overrides:
   axon_dart:
     hosted: http://192.168.1.250:30000/api/packages/LycheePublic/pub/
-    version: 0.10.0
+    version: 0.10.3
 ```
 
-然后在 `flutter/` 执行 `flutter pub get`。如果已有 SDK ZIP，将其中的原生库保留在 `vendor/axon-sdk/native/`，Windows x64 运行方式为：
+然后在 `flutter/` 执行以下命令即可，无需单独准备 DLL；`Axon()` 自动加载构建输出中的运行库。如之前设置了 `AXON_LIB_PATH`，先移除旧值，避免覆盖包内运行库：
 
 ```powershell
 flutter pub get
-$env:AXON_LIB_PATH = (Resolve-Path ../vendor/axon-sdk/native/win-x64/axon.dll).Path
+Remove-Item Env:AXON_LIB_PATH -ErrorAction SilentlyContinue
 flutter run -d windows
 ```
 
-**当前网络限制：** 已发布 `axon_dart 0.10.0`，入口的匿名元数据和直接包文件下载均已验证。但 Gitea 返回的 `archive_url` 使用 `192.168.35.251:30000`，在本次验证环境中不可达，因此完整的 Flutter 拉取尚未通过。客户端需能访问该下载地址，或使用发布方提供的、会改写下载地址的 Pub 代理入口；仅更改 `hosted` 地址不能改变服务器返回的下载地址。网络未解决时可使用下面的压缩包方式。
+执行 `flutter build windows --release` 后，DLL 和 LSL 许可证自动放入应用目录，分发整个 `build/windows/x64/runner/Release/`。原生 ABI 为 0.10.0，Dart 发布包补丁号为 0.10.3。Gitea 的 `latest` 字段可能仍返回旧版本，需显式指定 0.10.3；当前 `archive_url` 使用可访问的 `192.168.1.250:30000` 地址。
 
 ## 方式二：使用 SDK 压缩包
 
@@ -119,9 +119,9 @@ flutter run -d windows
 
 Linux 对应 `native/linux-x64/libaxon.so`（ARM64 替换 RID）；macOS 对应 `native/osx-arm64/libaxon.dylib` 或 `osx-x64`，沙盒应用仍需下文的嵌入与签名。
 
-## 两种方式共用的应用部署
+## SDK ZIP / 源码模式的应用部署
 
-Flutter 不会自动将此 SDK 的原生库复制到应用。Windows 执行 `flutter build windows --release` 后，将 `native/win-x64/` 的运行库和许可证一起复制到 `build/windows/x64/runner/Release/`，分发整个应用目录。
+SDK ZIP / 源码模式不会自动部署运行库（0.10.3 Windows 一体化 Pub 包会自动部署）。Windows 执行 `flutter build windows --release` 后，将 `native/win-x64/` 的运行库和许可证一起复制到 `build/windows/x64/runner/Release/`，分发整个应用目录。新版绑定的 `Axon()` 自动从 exe 旁加载 Windows DLL。
 
 当前示例的 `Axon()` 使用 `AXON_LIB_PATH` 加载；打包独立应用时，可改成相对可执行文件加载，避免依赖开发机绝对路径：
 

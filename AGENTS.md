@@ -5,11 +5,11 @@
 ## Flutter SDK 接入：Pub 或压缩包
 
 - 完整步骤以 [flutter/README.md](flutter/README.md) 为准。Flutter 有两种交付接入方式：自建 Pub 仓库，或 SDK 压缩包；均无需使用方检出 Axon 或安装 Rust。默认相邻源码依赖保留用于联调。
-- Pub：在 `flutter/pubspec_overrides.yaml` 中为 `axon_dart` 配置 hosted 地址 `http://192.168.1.250:30000/api/packages/LycheePublic/pub/` 和 `version: 0.10.0`，然后执行 `flutter pub get`。该组织允许匿名读，Pub 包当前只含 Dart 绑定，原生库单独取得同版 SDK 的 `native/<rid>/`。
-- 当前 Pub 下载地址由 Gitea 返回为 `192.168.35.251:30000`；客户端需能访问它或使用发布方的地址改写代理。匿名元数据可读不等于 Flutter 完整拉取已通过。要求认证的仓库需 HTTPS，不在仓库文件中存 Token。
+- Pub：在 `flutter/pubspec_overrides.yaml` 中为 `axon_dart` 配置 hosted 地址 `http://192.168.1.250:30000/api/packages/LycheePublic/pub/` 和 `version: 0.10.3`，然后执行 `flutter pub get`。该组织允许匿名读。0.10.3 一体化包内置 Windows x64 Release Axon/LSL DLL 和许可证，Flutter 构建自动部署，`Axon()` 自动加载，无需单独复制库或设置 AXON_LIB_PATH。
+- 一体化包目前仅支持 Windows x64；其他桌面平台使用匹配 ABI 的 SDK ZIP。当前 Gitea 下载地址为 `192.168.1.250:30000`；`latest` 可能返回旧版，需显式指定版本。要求认证的仓库需 HTTPS，不在仓库文件中存 Token。
 - 压缩包：将 SDK 解压到仓库的 `vendor/axon-sdk/`，通过 `flutter/pubspec_overrides.yaml` 的 `dependency_overrides.axon_dart.path: ../vendor/axon-sdk/axon_dart` 覆盖默认源码依赖，再执行 `flutter pub get`。绑定与 `native/<rid>/` 使用同一版 SDK。Pub 和 path 覆盖配置二选一。
 - 本机 vendor、pubspec_overrides.yaml 和机器绝对路径不提交；默认 pubspec 保留相邻源码开发方式。切换依赖路径时不要把本机 SDK 路径产生的 lockfile 改动带入无关提交。
-- 运行前将 `AXON_LIB_PATH` 指向包内当前平台/架构的 Axon 动态库。发布应用必须同时带上 LSL 运行库及许可证；Windows/Linux 使用可执行文件相对路径显式加载，macOS 嵌入并签名 `Contents/Frameworks` 中的库。Flutter assets 不替代原生运行库部署。
+- SDK ZIP / 源码模式运行前将 `AXON_LIB_PATH` 指向当前平台/架构的 Axon 动态库；Pub 一体化 Windows 模式无需此配置。发布应用必须同时带上 LSL 运行库及许可证；一体化插件自动部署，ZIP 手工复制。macOS 嵌入并签名 `Contents/Frameworks` 中的库。Flutter assets 不替代原生运行库部署。
 - 更改接入方式后验证 `flutter analyze`、`flutter test`，并运行 SDK 原生模拟器收样；可用时再构建相应桌面应用。两个仓库的打包布局变化时，同步更新此文件和 Flutter README。Axon 生产包入口为相邻仓库的 `scripts/build-flutter-sdk.ps1`，细节见其 `docs/guides/flutter-sdk.md`。
 
 ## 检查
