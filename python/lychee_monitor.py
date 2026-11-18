@@ -22,6 +22,8 @@ from axon import (
 )
 
 SIM_SERIAL = "0A1B2C"
+# ABI model 0 is BCI100, named LYCHEE_PFC in the published 0.10.0 wheel.
+SIM_MODEL = DeviceModel(0)
 LOG_LEVELS = {
     "none": LogLevel.NONE,
     "critical": LogLevel.CRITICAL,
@@ -156,7 +158,7 @@ class LycheeMonitor:
             return
         try:
             self._simulator = self.axon.start_simulator(
-                DeviceModel.LYCHEE_BCI100, SIM_SERIAL
+                SIM_MODEL, SIM_SERIAL
             )
             self.simulator_button.configure(state="disabled")
             self.status.set("模拟器已添加，正在等待设备出现在列表中…")

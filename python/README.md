@@ -73,6 +73,10 @@ uv run python lychee_monitor.py
 
 打开窗口后，点击“添加模拟器”即可创建一个内置模拟数据源；Lychee 硬件仍会自动发现。设备出现在顶部列表后选择设备，再点击“开始采集”。监测器订阅设备的 `eeg` 均匀采样流；没有该流或流为非均匀采样时会提示无法启动。窗口关闭时会停止 session、模拟器与监听器。
 
+模拟器使用 ABI 型号值 `DeviceModel(0)`（BCI100，3 通道、250 Hz）。
+已发布的 0.10.0 wheel 将此枚举成员命名为 `LYCHEE_PFC`，源码绑定中名为
+`LYCHEE_BCI100`；按 ABI 值选择可兼容这两种名称。
+
 ### lychee 设备 serial 格式
 
 lychee 设备 serial 为 6 位大写十六进制（如 `A1B2C3`），  

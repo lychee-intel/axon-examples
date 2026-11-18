@@ -108,7 +108,7 @@ class TestMonitorConfiguration(unittest.TestCase):
     def test_native_simulator_delivers_processed_samples_and_can_restart(self):
         with Axon() as axon:
             axon.start()
-            simulator = axon.start_simulator(DeviceModel.LYCHEE_BCI100, "0A1B2C")
+            simulator = axon.start_simulator(DeviceModel(0), "0A1B2C")
             try:
                 stream = next(s for s in axon.device_streams(simulator.serial) if s.id == "eeg")
                 monitor = self._configured_monitor(stream, None)
@@ -153,7 +153,7 @@ class TestMonitorConfiguration(unittest.TestCase):
 
         monitor.add_simulator()
 
-        start_simulator.assert_called_once_with(DeviceModel.LYCHEE_BCI100, "0A1B2C")
+        start_simulator.assert_called_once_with(DeviceModel(0), "0A1B2C")
         self.assertIsNotNone(monitor._simulator)
 
     def test_device_callback_matches_binding_signature(self):

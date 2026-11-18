@@ -1,0 +1,35 @@
+[
+  {
+    "label": "Run: Python Lychee Monitor",
+    "command": "uv",
+    "args": ["run", "python", "lychee_monitor.py"],
+    "cwd": "$ZED_WORKTREE_ROOT/python",
+    "env": {
+      "AXON_LIB_PATH": ""
+    },
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Run: Flutter EEG (Windows)",
+    "command": "flutter",
+    "args": ["run", "--no-pub", "-d", "windows"],
+    "cwd": "$ZED_WORKTREE_ROOT/flutter",
+    "env": {
+      "AXON_LIB_PATH": "$ZED_WORKTREE_ROOT/vendor/axon-sdk/native/win-x64/axon.dll"
+    },
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  },
+  {
+    "label": "Run: .NET Lychee Monitor (Windows)",
+    "command": "dotnet",
+    "args": ["run", "--project", "src/LycheeMonitor.csproj", "-p:AxonProjectPath="],
+    "cwd": "$ZED_WORKTREE_ROOT/dotnet",
+    "use_new_terminal": true,
+    "allow_concurrent_runs": false,
+    "reveal": "always"
+  }
+]
