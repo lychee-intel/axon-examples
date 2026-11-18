@@ -77,9 +77,10 @@ with Axon() as axon:
 
 | model | custom_options | serial |
 | --- | --- | --- |
-| `DeviceModel.LYCHEE_PFC` | 必须省略 | 六位十六进制，返回时规范化为大写 |
-| `DeviceModel.LYCHEE_PFC_NIRS` | 必须省略 | 同上 |
-| `DeviceModel.LYCHEE_PFC_SINGLE_CHANNEL` | 必须省略 | 同上 |
+| `DeviceModel.LYCHEE_BCI100` | 必须省略 | 六位十六进制，返回时规范化为大写；3 通道 EEG |
+| `DeviceModel.LYCHEE_BCI100_E` | 必须省略 | 同上；3 通道 EEG、双通道 NIRS |
+| `DeviceModel.LYCHEE_BCS100` | 必须省略 | 同上；单通道 EEG |
+| `DeviceModel.LYCHEE_BCH100` | 必须省略 | 同上；32 通道 EEG |
 | `DeviceModel.CUSTOM` | 必须提供 | 1–64 个 ASCII 字母、数字、点、下划线或短横线 |
 
 `CustomSimulatorOptions(eeg_channels=None, nirs_enabled=False)`：EEG 通道为 1–64，或 None 表示关闭；NIRS 为双通道，bool 开关。至少启用一种。EEG 固定 250 Hz，NIRS 固定 20 Hz。serial 必须在当前设备池内唯一。

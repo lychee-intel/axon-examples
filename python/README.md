@@ -1,12 +1,14 @@
 # Axon Python Binding — Examples
 
-ABI 0.6 的 Session 只绑定设备；示例明确创建 EEG 管线和处理后订阅：
+ABI 0.10 的 Session 只绑定设备；示例明确创建 EEG 管线和处理后订阅：
 
 ```python
+from axon import DeliveryKinds
+
 session = axon.new_session(serial)
 pipeline = session.create_pipeline("eeg")
 pipeline.add_filter(stage)
-subscription = pipeline.subscribe()
+subscription = pipeline.subscribe(delivery_mask=DeliveryKinds.DATA)
 block = subscription.data_queue.get(timeout=3)
 subscription.dispose()
 pipeline.dispose()
@@ -19,17 +21,43 @@ session.dispose()
 
 ## 环境准备
 
-先安装 ABI 0.6.0 的 Axon Python wheel，并选择与你的系统和 CPU 架构匹配的文件。旧版 ABI 不兼容：
+先安装 ABI 0.10.0 的 Axon Python wheel，并选择与你的系统和 CPU 架构匹配的文件。旧版 ABI 不兼容：
 
 推荐使用 `uv` 管理 Python 环境。
 
 ```shell
 cd axon-examples\python
 uv venv
-uv pip install --reinstall path/to/your/wheel/axon-0.6.0-py3-none-win_amd64.whl
+uv pip install --reinstall path/to/your/wheel/axon-0.10.0-py3-none-win_amd64.whl
 ```
 
-上面的文件名以 Windows x64 为例；macOS 和 Linux 请使用对应平台的 ABI 0.6.0 wheel。
+上面的文件名以 Windows x64 为例；macOS 和 Linux 请使用对应平台的 ABI 0.10.0 wheel。
+
+安装后可用 `uv pip install -r requirements.txt` 检查绑定版本。语言绑定和原生库必须来自同一份 SDK；不能混用旧 wheel 内的库与当前源码绑定。
+
+### 相邻源码开发（Windows）
+
+将 `axon` 与 `axon-examples` 放在同一目录，在本目录执行：
+
+```powershell
+pwsh ../../axon/scripts/build-native.ps1 -Profile debug
+uv venv
+uv pip install -e ../../axon/bindings/python
+$env:AXON_LIB_PATH = (Resolve-Path ../../axon/outputs/native/windows/debug/axon.dll).Path
+uv run python lychee_monitor.py
+```
+
+macOS/Linux 使用同一构建脚本，并将 `AXON_LIB_PATH` 指向相应平台产物。升级源码后重新构建原生库。
+
+### 检查
+
+```powershell
+uv run python -m unittest discover -s tests -v
+$env:AXON_RUN_NATIVE_TESTS = "1"
+uv run python -m unittest discover -s tests -v
+```
+
+第二次运行包含原生模拟器、处理管线和队列收样测试，需先准备匹配的运行库。未设置 `AXON_RUN_NATIVE_TESTS=1` 时跳过原生测试。
 
 ## lychee_monitor.py — Lychee EEG 实时波形监测
 

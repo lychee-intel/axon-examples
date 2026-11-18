@@ -1,12 +1,13 @@
 """Tests for the data model used by the Tk Lychee monitor example."""
 
+import os
 import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch, Mock
 
-from axon import AxonError, SampleBlock
+from axon import Axon, AxonError, DeliveryKinds, DeviceModel, SampleBlock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from lychee_monitor import LycheeMonitor, WaveformBuffer, can_add_simulator, parse_args
@@ -34,7 +35,8 @@ class _FakeSession:
         self.pipeline.fail_configuration = self.fail_configuration
         return self.pipeline
 
-    def subscribe(self):
+    def subscribe(self, **options):
+        self.subscription_options = options
         self.subscription = _FakeSession()
         return self.subscription
 
@@ -101,6 +103,36 @@ class TestWaveformBuffer(unittest.TestCase):
 
 
 class TestMonitorConfiguration(unittest.TestCase):
+    @unittest.skipUnless(os.environ.get("AXON_RUN_NATIVE_TESTS") == "1",
+                         "set AXON_RUN_NATIVE_TESTS=1 with a matching native library")
+    def test_native_simulator_delivers_processed_samples_and_can_restart(self):
+        with Axon() as axon:
+            axon.start()
+            simulator = axon.start_simulator(DeviceModel.LYCHEE_BCI100, "0A1B2C")
+            try:
+                stream = next(s for s in axon.device_streams(simulator.serial) if s.id == "eeg")
+                monitor = self._configured_monitor(stream, None)
+                monitor.axon = axon
+                monitor._selected_serial = lambda: simulator.serial
+                # Reopening the same device exercises child cleanup as well as delivery.
+                for _ in range(2):
+                    try:
+                        with patch("lychee_monitor.messagebox.showerror") as show_error:
+                            monitor.start_session()
+                        show_error.assert_not_called()
+                        self.assertIsNotNone(monitor.subscription)
+                        block = monitor.subscription.data_queue.get(timeout=5)
+                        self.assertEqual(block.num_channels, stream.num_channels)
+                        self.assertEqual(block.sample_rate_hz, stream.sample_rate_hz)
+                        self.assertGreater(block.num_samples, 0)
+                        self.assertEqual(len(block.data), block.num_channels * block.num_samples)
+                        monitor.buffer.append(block)
+                        self.assertEqual(monitor.buffer.channel_count, stream.num_channels)
+                    finally:
+                        monitor.stop_session()
+            finally:
+                simulator.stop()
+
     def test_monitor_starts_without_device_command_line_arguments(self):
         args = parse_args([])
 
@@ -113,11 +145,22 @@ class TestMonitorConfiguration(unittest.TestCase):
         self.assertFalse(can_add_simulator(axon_started=True, simulator_added=True, collecting=False))
         self.assertFalse(can_add_simulator(axon_started=True, simulator_added=False, collecting=True))
 
+    def test_add_simulator_uses_current_device_model(self):
+        monitor = self._configured_monitor(None, None)
+        monitor._axon_started = True
+        start_simulator = Mock(return_value=SimpleNamespace(serial="0A1B2C"))
+        monitor.axon = SimpleNamespace(start_simulator=start_simulator)
+
+        monitor.add_simulator()
+
+        start_simulator.assert_called_once_with(DeviceModel.LYCHEE_BCI100, "0A1B2C")
+        self.assertIsNotNone(monitor._simulator)
+
     def test_device_callback_matches_binding_signature(self):
         monitor = LycheeMonitor.__new__(LycheeMonitor)
         monitor.device_events = __import__("queue").Queue()
 
-        monitor._on_device_event("SIM-1", "Lychee", "PFC", True)
+        monitor._on_device_event("SIM-1", "Lychee", "BCI100", True)
 
         self.assertEqual(monitor.device_events.get_nowait(), ("SIM-1", "Lychee", True))
 
@@ -159,6 +202,8 @@ class TestMonitorConfiguration(unittest.TestCase):
         self.assertIs(monitor.session, session)
         self.assertIs(monitor.pipeline, session.pipeline)
         self.assertIs(monitor.subscription, session.pipeline.subscription)
+        self.assertEqual(session.pipeline.subscription_options,
+                         {"delivery_mask": DeliveryKinds.DATA})
         self.assertEqual(len(session.pipeline.filters), 1)
         self.assertFalse(hasattr(session.pipeline.filters[0], "sample_rate_hz"))
         self.assertIn("8 通道", monitor.status.value)

@@ -17,6 +17,7 @@ from axon import (
     FilterType,
     LogLevel,
     DeviceModel,
+    DeliveryKinds,
     SampleBlock,
 )
 
@@ -155,7 +156,7 @@ class LycheeMonitor:
             return
         try:
             self._simulator = self.axon.start_simulator(
-                DeviceModel.LYCHEE_PFC, SIM_SERIAL
+                DeviceModel.LYCHEE_BCI100, SIM_SERIAL
             )
             self.simulator_button.configure(state="disabled")
             self.status.set("模拟器已添加，正在等待设备出现在列表中…")
@@ -242,7 +243,7 @@ class LycheeMonitor:
                     filter_type=FilterType.IIR, kind=FilterKind.NOTCH, cutoff_hz=50.0,
                     order=4, q=30.0,
                 ))
-            subscription = pipeline.subscribe()
+            subscription = pipeline.subscribe(delivery_mask=DeliveryKinds.DATA)
         except Exception as error:
             for resource in (subscription, pipeline, session):
                 if resource is not None:

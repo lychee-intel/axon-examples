@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Axon;
 using Axon.Data;
+using Axon.Delivery;
 using Axon.Devices;
 using Axon.Diagnostics;
 using Axon.Processing;
@@ -264,7 +265,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
 
                         pipeline.SetFilters(filters);
                     });
-                subscription = pipeline.Subscribe();
+                subscription = pipeline.Subscribe(new SubscriptionOptions { Delivery = DeliveryKinds.Data });
             }
             catch
             {
