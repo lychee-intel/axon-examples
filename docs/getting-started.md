@@ -10,9 +10,9 @@
 | --- | --- |
 | Python | 在虚拟环境中安装发布的 `.whl` 文件，例如 `python -m pip install ./packages/<wheel文件名>.whl`，将占位文件名替换为实际文件名 |
 | C#/.NET | 将发布的 `.nupkg` 放入本地 NuGet 源，配置包源并引用对应版本的 `Axon` 包 |
-| Dart/Flutter | 解压发布的 `axon_dart` 包，通过 `pubspec.yaml` 的 path 依赖指向解压目录，再运行 `flutter pub get` |
+| Dart/Flutter | 两种方式：通过自建 Pub 仓库的 hosted 依赖拉取绑定，或解压 SDK ZIP 后通过 path 引用；再运行 `flutter pub get`。详见 [Flutter 接入说明](../flutter/README.md) |
 
-现有 Flutter 示例仍使用开发环境的本地依赖路径，运行前需改成发布包的解压目录；.NET 项目若配置了源码项目引用，应改为发布的 NuGet 包引用。当前示例的版本差异见[版本兼容说明](../README.md#版本兼容)。
+Flutter 示例默认保留相邻源码依赖用于联调；使用已交付 SDK 时，通过 `pubspec_overrides.yaml` 选择 Pub 或压缩包方式。当前 Pub 包仅含 Dart 绑定，仍需匹配的原生库；Gitea 下载地址的网络限制见 Flutter 接入说明。.NET 项目若配置了源码项目引用，应改为发布的 NuGet 包引用。当前示例的版本差异见[版本兼容说明](../README.md#版本兼容)。
 
 需要单独部署原生库时，保留发布包提供的目录内容。LSL 发布需要同目录的 liblsl 和 `LSL-*.txt` 许可证文件，不能只复制 Axon 动态库。
 

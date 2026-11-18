@@ -4,6 +4,8 @@
 *.iml
 .flutter-plugins*
 .packages
+/flutter/pubspec_overrides.yaml
+/vendor/
 
 # Python
 __pycache__/

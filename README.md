@@ -28,4 +28,6 @@ Axon 是力之的生理信号采集与处理 SDK，以 Rust 实现采集、信�
 
 Python、Flutter 与 .NET 示例统一使用 **0.10.0 语言绑定及 ABI 0.10.x**。相邻源码模式引用当前绑定，独立 .NET 模式使用匹配的 0.10.0 NuGet 包。Python 的安装与源码开发方式见其子目录。
 
+Flutter SDK 支持两种交付方式：访问自建 Pub 仓库，或使用 SDK 压缩包。Pub 当前只提供 Dart 绑定，原生库需另行准备；压缩包同时包含绑定与对应运行库。配置方法和当前 Pub 网络限制见 [Flutter README](flutter/README.md)。
+
 升级时需同步更新语言绑定及原生动态库；绑定会拒绝不匹配的 ABI 主、次版本。使用与你的操作系统和 CPU 架构匹配的 SDK 发布包，安装与部署步骤见[接入指南](docs/getting-started.md)。
