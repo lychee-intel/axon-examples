@@ -7,9 +7,10 @@ import 'signal_canvas.dart';
 import 'waveform.dart';
 import 'filter_config.dart';
 import 'device_stream_config.dart';
+import 'attention_score.dart';
 
-/// 数据源：Lychee BCI100 模拟器 / 力之真实数据。
-enum _DataSource { simulator, lychee }
+/// 数据源：协议模拟器 / EEG 分数模拟器 / 力之真实数据。
+enum _DataSource { simulator, eegSimulator, lychee }
 
 /// 应用根：MaterialApp + 主屏幕。
 class AxonDemoApp extends StatelessWidget {
@@ -42,6 +43,10 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
   AxonSession? _deviceSession;
   AxonProcessingPipeline? _pipeline;
   AxonSubscription? _session;
+  AxonProcessingPipeline? _attentionPipeline;
+  AxonSubscription? _attentionSession;
+  Timer? _attentionTimer;
+  final _attention = AttentionScoreHistory();
   AxonSimulator? _simulator;
   StreamSubscription<SampleBlock>? _dataSub;
   bool _running = false;
@@ -50,7 +55,7 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
   List<String> _channelLabels = List.generate(3, (i) => 'CH${i + 1}');
   double _sampleRateHz = 250;
   int _channel = 0;
-  int _viewMode = 0; // 0=波形 1=频谱 2=信号
+  int _viewMode = 0; // 0=波形 1=频谱 2=信号 3=注意力分数
   final List<double> _recorded = [];
 
   /// Dart 侧维护的滤波器链（每次 start 时重建 native pipeline）。
@@ -63,6 +68,7 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
   }
 
   void _start() {
+    _attention.begin();
     try {
       final serial = switch (_dataSource) {
         _DataSource.simulator => () {
@@ -70,6 +76,16 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
           final simulator = _axon.startSimulator(
             model: DeviceModel.lycheeBci100,
             serial: '0A1B2C',
+          );
+          _simulator = simulator;
+          return simulator.serial;
+        }(),
+        _DataSource.eegSimulator => () {
+          _axon.start();
+          final simulator = _axon.startSimulator(
+            model: DeviceModel.custom,
+            serial: 'attention-preview',
+            customOptions: CustomSimulatorOptions(eegChannels: 3),
           );
           _simulator = simulator;
           return simulator.serial;
@@ -115,6 +131,7 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
         debugPrint('axon event: ${e.eventType} @ ${e.onset}');
       });
       _dataSub = session.signal.listen((b) => _recorded.addAll(b.data));
+      _startAttention(deviceSession, stream.id);
       switch (_dataSource) {
         case _DataSource.lychee:
           setState(() {
@@ -122,6 +139,7 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
             _channel = 0;
           });
         case _DataSource.simulator:
+        case _DataSource.eegSimulator:
           setState(() => _running = true);
       }
     } catch (e) {
@@ -130,7 +148,42 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
     }
   }
 
+  void _startAttention(AxonSession deviceSession, String streamId) {
+    try {
+      // The score uses every EEG channel on its own unfiltered branch.
+      final pipeline = deviceSession.createPipeline(streamId);
+      _attentionPipeline = pipeline;
+      final subscription = pipeline.subscribe();
+      _attentionSession = subscription;
+      subscription.configureAttentionScore();
+      _attentionTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+        try {
+          for (final event in subscription.pollAttentionScores()) {
+            _attention.add(event);
+          }
+        } catch (error) {
+          _closeAttention();
+          _attention.fail('$error');
+        }
+      });
+    } catch (error) {
+      _closeAttention();
+      _attention.fail('$error');
+    }
+  }
+
+  void _closeAttention() {
+    _attentionTimer?.cancel();
+    _attentionTimer = null;
+    _attentionSession?.dispose();
+    _attentionSession = null;
+    _attentionPipeline?.dispose();
+    _attentionPipeline = null;
+  }
+
   void _stop() {
+    _closeAttention();
+    _attention.stop();
     _dataSub?.cancel();
     _dataSub = null;
     _session?.dispose();
@@ -165,6 +218,8 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
 
   @override
   void dispose() {
+    _closeAttention();
+    _attention.dispose();
     _dataSub?.cancel();
     _session?.dispose();
     _pipeline?.dispose();
@@ -215,6 +270,11 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                       icon: Icon(Icons.memory),
                     ),
                     ButtonSegment(
+                      value: _DataSource.eegSimulator,
+                      label: Text('EEG 分数模拟器'),
+                      icon: Icon(Icons.science_outlined),
+                    ),
+                    ButtonSegment(
                       value: _DataSource.lychee,
                       label: Text('力之真实数据'),
                       icon: Icon(Icons.sensors),
@@ -225,6 +285,7 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                       ? null
                       : (sel) async {
                           final src = sel.first;
+                          _attention.reset();
                           setState(() {
                             _dataSource = src;
                             _recorded.clear();
@@ -275,6 +336,11 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                       label: Text('信号'),
                       icon: Icon(Icons.insights),
                     ),
+                    ButtonSegment(
+                      value: 3,
+                      label: Text('注意力分数'),
+                      icon: Icon(Icons.psychology),
+                    ),
                   ],
                   selected: {_viewMode},
                   onSelectionChanged: (sel) =>
@@ -293,7 +359,9 @@ class _AxonDemoScreenState extends State<AxonDemoScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: _viewMode == 1
+                  child: _viewMode == 3
+                      ? AttentionScoreView(history: _attention)
+                      : _viewMode == 1
                       ? SpectrumCanvas(
                           key: ObjectKey(_session),
                           stream: _session?.spectrum ?? const Stream.empty(),
